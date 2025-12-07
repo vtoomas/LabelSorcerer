@@ -350,12 +350,17 @@
 .variable-actions {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
 .variable-usage {
   font-size: 0.8rem;
   color: #6b6b6f;
+}
+
+.variable-action-buttons {
+  display: inline-flex;
+  gap: 0.35rem;
 }
 
 .variable-empty {

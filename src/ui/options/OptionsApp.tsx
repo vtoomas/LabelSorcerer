@@ -729,6 +729,21 @@ function LayoutEditorView({ formats, initialLayout, onSave, onCancel, onDelete }
     setShowVariableDialog(true);
   };
 
+  const handleRemoveVariable = (variable: LayoutVariable) => {
+    const confirmed = window.confirm(`Remove variable "${variable.label}"? Elements bound to it will be cleared.`);
+    if (!confirmed) return;
+    setDraft((prev) => {
+      const filteredVariables = prev.variables.filter((item) => item.key !== variable.key);
+      const updatedElements = prev.elements.map((element) => {
+        if (element.dynamicBinding?.variableKey === variable.key) {
+          return { ...element, mode: "static", dynamicBinding: undefined };
+        }
+        return element;
+      });
+      return { ...prev, variables: filteredVariables, elements: updatedElements };
+    });
+  };
+
   const handleEditVariableClick = (variable: LayoutVariable) => {
     setEditingVariable(variable);
     setShowVariableDialog(true);
@@ -822,9 +837,19 @@ function LayoutEditorView({ formats, initialLayout, onSave, onCancel, onDelete }
                   </div>
                   <div className="variable-actions">
                     <span className="variable-usage">{usageCounts[variable.key] ?? 0} elements</span>
-                    <button type="button" className="icon-button" onClick={() => handleEditVariableClick(variable)}>
-                      ✎
-                    </button>
+                    <div className="variable-action-buttons">
+                      <button type="button" className="icon-button" onClick={() => handleEditVariableClick(variable)} aria-label="Edit variable">
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => handleRemoveVariable(variable)}
+                        aria-label="Remove variable"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
                 </div>
               </li>
