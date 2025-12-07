@@ -535,13 +535,3 @@ src/
 * JSON import/export.
 * Error handling & validation (missing variables, bad selectors, etc.).
 * Undo/redo in layout editor (optional v1.1).
-
----
-
-That’s the full development plan for LabelSorcerer.
-
-You can now:
-
-* Drop this into your coding assistant as context.
-* Add `models.ts` with the interfaces we discussed earlier.
-* Start asking for concrete implementations file by file (e.g. “Implement storageService.ts as per spec”).
