@@ -8,6 +8,7 @@ type OptionsSection = "layouts" | "dataSources" | "formats" | "importExport" | "
 type ToolbarElementType = "text" | "qrcode" | "image" | "shape";
 
 const SNAP_GRID = 4;
+const ATTRIBUTE_OPTIONS = ["", "textContent", "href", "src", "value", "title", "aria-label", "data-id", "data-label", "custom"] as const;
 
 const FALLBACK_FORMATS: LabelFormat[] = [
   {
@@ -1058,17 +1059,39 @@ function DataSourceEditor({ dataSource, layouts, onSave, onCancel, onDelete }: D
                       />
                     </label>
                     <label className="editor-field">
-                      <span>Attribute (optional)</span>
-                      <input
+                      <span>Attribute</span>
+                      <select
                         className="editor-input"
-                        type="text"
-                        value={mapping.attributeName ?? ""}
-                        onChange={(event) =>
-                          handleMappingChange(variable.key, (prev) => ({ ...prev, attributeName: event.target.value || null }))
-                        }
-                        placeholder="href, data-id, textContent"
-                      />
+                        value={resolveAttributeOption(mapping.attributeName)}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          handleMappingChange(variable.key, (prev) => ({
+                            ...prev,
+                            attributeName: value === "custom" ? prev.attributeName ?? "" : value || null,
+                          }));
+                        }}
+                      >
+                        {ATTRIBUTE_OPTIONS.map((option) => (
+                          <option key={option || "none"} value={option}>
+                            {option === "" ? "textContent (default)" : option}
+                          </option>
+                        ))}
+                      </select>
                     </label>
+                    {resolveAttributeOption(mapping.attributeName) === "custom" && (
+                      <label className="editor-field">
+                        <span>Custom attribute</span>
+                        <input
+                          className="editor-input"
+                          type="text"
+                          value={mapping.attributeName ?? ""}
+                          onChange={(event) =>
+                            handleMappingChange(variable.key, (prev) => ({ ...prev, attributeName: event.target.value }))
+                          }
+                          placeholder="data-custom"
+                        />
+                      </label>
+                    )}
                     <label className="editor-field">
                       <span>Regex pattern</span>
                       <input
@@ -1476,6 +1499,12 @@ function createEmptyMapping(key: string, multiple: boolean): DataSource["variabl
     prefix: null,
     suffix: null,
   };
+}
+
+function resolveAttributeOption(attributeName?: string | null): (typeof ATTRIBUTE_OPTIONS)[number] {
+  if (!attributeName) return "";
+  const normalized = attributeName.trim();
+  return ATTRIBUTE_OPTIONS.includes(normalized as (typeof ATTRIBUTE_OPTIONS)[number]) ? (normalized as (typeof ATTRIBUTE_OPTIONS)[number]) : "custom";
 }
 
 function unwrapLayouts(response: MessageResponse): LabelLayout[] {
