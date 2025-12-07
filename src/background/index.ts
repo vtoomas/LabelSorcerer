@@ -4,7 +4,8 @@ import {
   MessageResponse,
   StatusPayload
 } from "../shared/messaging";
-import { getDataSources, getLayouts, resolveDataSourceForUrl } from "./dataCatalog";
+import { findMatchingDataSource, getDataSources } from "../domain/dataSourceService";
+import { getLayouts } from "../domain/layoutService";
 
 const BUILD_VERSION = "0.1.0";
 
@@ -16,13 +17,15 @@ async function queryActiveTab(): Promise<chrome.tabs.Tab | undefined> {
   });
 }
 
-function buildStatus(): StatusPayload {
+async function buildStatus(): Promise<StatusPayload> {
+  const [layouts, dataSources] = await Promise.all([getLayouts(), getDataSources()]);
+
   return {
     ready: true,
     version: BUILD_VERSION,
     timestamp: new Date().toISOString(),
-    layoutCount: getLayouts().length,
-    dataSourceCount: getDataSources().length,
+    layoutCount: layouts.length,
+    dataSourceCount: dataSources.length,
     message: "Background is ready to serve UI requests."
   };
 }
@@ -30,7 +33,7 @@ function buildStatus(): StatusPayload {
 async function buildActiveContext(): Promise<ActiveTabContext> {
   const tab = await queryActiveTab();
   const url = tab?.url;
-  const dataSource = resolveDataSourceForUrl(url);
+  const dataSource = await findMatchingDataSource(url ?? "");
 
   return {
     tabId: tab?.id,
@@ -45,11 +48,11 @@ async function buildActiveContext(): Promise<ActiveTabContext> {
 async function handleMessage(message: MessageRequest): Promise<MessageResponse> {
   switch (message.type) {
     case "getStatus":
-      return { type: "status", payload: buildStatus() };
+      return { type: "status", payload: await buildStatus() };
     case "getLayouts":
-      return { type: "layouts", payload: getLayouts() };
+      return { type: "layouts", payload: await getLayouts() };
     case "getDataSources":
-      return { type: "dataSources", payload: getDataSources() };
+      return { type: "dataSources", payload: await getDataSources() };
     case "getActiveTabContext":
       return { type: "activeContext", payload: await buildActiveContext() };
     default:
