@@ -1,7 +1,7 @@
 import type { CSSProperties, FormEvent, JSX } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { DataSource, LabelFormat, LabelLayout, LayoutElement, LayoutVariable } from "../../domain/models";
-import { sendMessage, type MessageResponse } from "../../shared/messaging";
+import { sendMessage, type MessageResponse, type ResolvedVariable } from "../../shared/messaging";
 import "./options-shell.css";
 
 type OptionsSection = "layouts" | "dataSources" | "formats" | "importExport" | "settings";
@@ -908,6 +908,9 @@ function DataSourceEditor({ dataSource, layouts, onSave, onCancel, onDelete }: D
   const [draft, setDraft] = useState<DataSource>(() => ({ ...dataSource, variableMappings: dataSource.variableMappings.map((m) => ({ ...m })) }));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [testingKey, setTestingKey] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, ResolvedVariable>>({});
+  const [testErrors, setTestErrors] = useState<Record<string, string>>({});
 
   const selectedLayout = useMemo(
     () => layouts.find((layout) => layout.id === draft.defaultLayoutId) ?? layouts[0],
@@ -924,6 +927,32 @@ function DataSourceEditor({ dataSource, layouts, onSave, onCancel, onDelete }: D
       ...prev,
       variableMappings: prev.variableMappings.map((mapping) => (mapping.key === key ? updater(mapping) : mapping)),
     }));
+  };
+
+  const handleTestMapping = async (key: string) => {
+    const mapping = draft.variableMappings.find((entry) => entry.key === key);
+    if (!mapping) return;
+    setTestingKey(key);
+    setTestErrors((prev) => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+    try {
+      const response = await sendMessage({ type: "testMappings", payload: { mappings: [mapping] } });
+      if (response.type === "evaluationResult") {
+        const first = response.payload.resolved[0];
+        if (first) {
+          setTestResults((prev) => ({ ...prev, [key]: first }));
+        }
+      } else if (response.type === "error") {
+        setTestErrors((prev) => ({ ...prev, [key]: response.payload.message }));
+      }
+    } catch (err) {
+      setTestErrors((prev) => ({ ...prev, [key]: err instanceof Error ? err.message : String(err) }));
+    } finally {
+      setTestingKey(null);
+    }
   };
 
   const handleSave = async () => {
@@ -1044,6 +1073,14 @@ function DataSourceEditor({ dataSource, layouts, onSave, onCancel, onDelete }: D
                       <div className="mapping-title">{variable.label}</div>
                       <div className="mapping-key">key: {variable.key}</div>
                     </div>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => void handleTestMapping(variable.key)}
+                      disabled={testingKey === variable.key}
+                    >
+                      {testingKey === variable.key ? "Testing..." : "Test selector"}
+                    </button>
                   </div>
                   <div className="properties-grid">
                     <label className="editor-field">
@@ -1163,7 +1200,7 @@ function DataSourceEditor({ dataSource, layouts, onSave, onCancel, onDelete }: D
                       <span>Expect multiple values</span>
                     </label>
                   </div>
-                  <div className="mapping-hint">Selector tester coming soon.</div>
+                  <MappingTestResult result={testResults[variable.key]} error={testErrors[variable.key]} />
                 </div>
               );
             })}
@@ -1476,6 +1513,36 @@ function VariableDialog({ variable, onSave, onCancel }: VariableDialogProps): JS
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+interface MappingTestResultProps {
+  result?: ResolvedVariable;
+  error?: string | null;
+}
+
+function MappingTestResult({ result, error }: MappingTestResultProps): JSX.Element {
+  if (error) {
+    return <div className="mapping-hint error">Test failed: {error}</div>;
+  }
+  if (!result) {
+    return <div className="mapping-hint">No test run yet.</div>;
+  }
+  const matches = result.selectorMatches ?? [];
+  return (
+    <div className="mapping-hint">
+      Status: {result.status} · Value: <strong>{result.value}</strong> · Matches: {matches.length}
+      {matches.length > 0 && (
+        <div className="mapping-matches">
+          {matches.slice(0, 3).map((match, index) => (
+            <span key={index} className="match-chip">
+              {match}
+            </span>
+          ))}
+          {matches.length > 3 && <span className="match-chip more">+{matches.length - 3} more</span>}
+        </div>
+      )}
     </div>
   );
 }

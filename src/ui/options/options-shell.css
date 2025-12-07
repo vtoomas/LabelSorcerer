@@ -465,6 +465,30 @@
   margin-top: 0.25rem;
 }
 
+.mapping-hint.error {
+  color: #b42318;
+}
+
+.mapping-matches {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.2rem;
+}
+
+.match-chip {
+  background: #eef2ff;
+  border: 1px solid #d8dbe2;
+  border-radius: 0.5rem;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.78rem;
+  color: #4b5563;
+}
+
+.match-chip.more {
+  background: #f3f1ff;
+}
+
 .properties-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

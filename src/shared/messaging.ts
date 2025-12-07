@@ -1,4 +1,4 @@
-import type { DataSource, LabelLayout } from "../domain/models";
+import type { DataSource, DataSourceVariableMapping, LabelLayout } from "../domain/models";
 import type { MappingEvaluationResult } from "./mappingEvaluator";
 
 export interface StatusPayload {
@@ -29,6 +29,7 @@ export type MessageRequest =
   | { type: "getDataSources" }
   | { type: "getActiveTabContext" }
   | { type: "evaluateDataSource"; payload: { dataSourceId: number } }
+  | { type: "testMappings"; payload: { mappings: DataSourceVariableMapping[] } }
   | { type: "saveLayout"; payload: LabelLayout }
   | { type: "deleteLayout"; payload: { id: number } }
   | { type: "saveDataSource"; payload: DataSource }
@@ -45,7 +46,7 @@ export type MessageResponse =
   | { type: "dataSourceDeleted"; payload: { id: number } }
   | {
       type: "evaluationResult";
-      payload: { dataSourceId: number; resolved: ResolvedVariable[]; tabId?: number };
+      payload: { dataSourceId?: number | null; resolved: ResolvedVariable[]; tabId?: number };
     }
   | { type: "error"; payload: { message: string } };
 

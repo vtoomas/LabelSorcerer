@@ -151,6 +151,31 @@ async function handleMessage(message: MessageRequest): Promise<MessageResponse> 
         };
       }
     }
+    case "testMappings": {
+      const tab = await queryActiveTab();
+      if (!tab?.id) {
+        return { type: "error", payload: { message: "No active content tab available." } };
+      }
+
+      try {
+        const resolved = await sendMessageToTab<ResolvedVariable[]>(tab.id, {
+          type: "evaluateMappings",
+          payload: message.payload.mappings
+        });
+
+        return {
+          type: "evaluationResult",
+          payload: { dataSourceId: null, resolved, tabId: tab.id }
+        };
+      } catch (error) {
+        return {
+          type: "error",
+          payload: {
+            message: error instanceof Error ? error.message : "Failed to evaluate mappings."
+          }
+        };
+      }
+    }
     case "getActiveTabContext":
       return { type: "activeContext", payload: await buildActiveContext() };
     default:
