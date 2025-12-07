@@ -19,6 +19,6 @@
       "run_at": "document_idle"
     }
   ],
-  "permissions": ["storage", "tabs", "scripting"],
+  "permissions": ["storage", "tabs", "scripting", "windows"],
   "host_permissions": ["<all_urls>"]
 }
