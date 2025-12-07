@@ -7,6 +7,7 @@ export function PopupApp(): JSX.Element {
   const [layouts, setLayouts] = useState<LabelLayout[]>([]);
   const [resolved, setResolved] = useState<ResolvedVariable[]>([]);
   const [selectedLayoutId, setSelectedLayoutId] = useState<number | null>(null);
+  const [userLayoutOverride, setUserLayoutOverride] = useState(false);
   const [dataSourceName, setDataSourceName] = useState<string>("–");
   const [dataSourceId, setDataSourceId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -70,7 +71,7 @@ export function PopupApp(): JSX.Element {
         const context = contextResponse.payload;
         setDataSourceId(context.dataSourceId ?? null);
         setDataSourceName(context.dataSourceName ?? "No match");
-        if (context.defaultLayoutId) {
+        if (context.defaultLayoutId && !userLayoutOverride) {
           setSelectedLayoutId(context.defaultLayoutId);
         }
         if (context.dataSourceId !== null && context.dataSourceId !== undefined) {
@@ -115,6 +116,7 @@ export function PopupApp(): JSX.Element {
             onChange={(event) => {
               const value = event.target.value;
               setSelectedLayoutId(value ? Number(value) : null);
+              setUserLayoutOverride(true);
             }}
             disabled={layouts.length === 0}
           >
