@@ -53,7 +53,19 @@ export function PopupApp(): JSX.Element {
     setError(null);
     setResolved([]);
     try {
-      const contextResponse = await sendMessage({ type: "getActiveTabContext" });
+      const [layoutResponse, contextResponse] = await Promise.all([
+        sendMessage({ type: "getLayouts" }),
+        sendMessage({ type: "getActiveTabContext" })
+      ]);
+
+      if (layoutResponse.type === "layouts") {
+        setLayouts(layoutResponse.payload);
+        setSelectedLayoutId((prev) => {
+          if (prev && layoutResponse.payload.some((layout) => layout.id === prev)) return prev;
+          return layoutResponse.payload[0]?.id ?? null;
+        });
+      }
+
       if (contextResponse.type === "activeContext") {
         const context = contextResponse.payload;
         setDataSourceId(context.dataSourceId ?? null);
@@ -100,8 +112,13 @@ export function PopupApp(): JSX.Element {
           <select
             className="layout-select"
             value={selectedLayoutId ?? ""}
-            onChange={(event) => setSelectedLayoutId(Number(event.target.value))}
+            onChange={(event) => {
+              const value = event.target.value;
+              setSelectedLayoutId(value ? Number(value) : null);
+            }}
+            disabled={layouts.length === 0}
           >
+            {layouts.length === 0 && <option value="">No layouts found</option>}
             {layouts.map((layout) => (
               <option key={layout.id} value={layout.id}>
                 {layout.name}
