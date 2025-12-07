@@ -1,0 +1,42 @@
+:root {
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.hero {
+  background: linear-gradient(135deg, #66fcf1, #45a29e);
+  color: #0b0c10;
+}
+
+.section h1 {
+  font-size: 1.1rem;
+}
+
+.section p {
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.timeline article {
+  padding: 0.5rem;
+  background: #0b0c10;
+  border: 1px solid #66fcf1;
+  border-radius: 8px;
+}
+
+.timeline h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: #66fcf1;
+}

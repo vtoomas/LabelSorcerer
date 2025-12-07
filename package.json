@@ -1,0 +1,20 @@
+{
+  "name": "labelsorcerer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun run scripts/build.ts",
+    "clean": "bun run scripts/clean.ts"
+  },
+  "dependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/bun": "latest",
+    "@types/chrome": "^0.0.266"
+  }
+}

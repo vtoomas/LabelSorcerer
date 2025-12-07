@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "LabelSorcerer",
+  "description": "A Chrome extension that maps DOM data to reusable label layouts.",
+  "version": "0.1.0",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "LabelSorcerer"
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background/index.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/index.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["storage", "tabs", "scripting"],
+  "host_permissions": ["<all_urls>"]
+}
