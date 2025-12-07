@@ -19,41 +19,7 @@ export function PopupApp(): JSX.Element {
   }, [loading, dataSourceId]);
 
   useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setError(null);
-      try {
-        const [layoutResponse, contextResponse] = await Promise.all([
-          sendMessage({ type: "getLayouts" }),
-          sendMessage({ type: "getActiveTabContext" }),
-        ]);
-
-        if (cancelled) return;
-        if (layoutResponse.type === "layouts") {
-          setLayouts(layoutResponse.payload);
-          setSelectedLayoutId(layoutResponse.payload[0]?.id ?? null);
-        }
-
-        if (contextResponse.type === "activeContext") {
-          setDataSourceId(contextResponse.payload.dataSourceId ?? null);
-          setDataSourceName(contextResponse.payload.dataSourceName ?? "No match");
-          if (contextResponse.payload.defaultLayoutId) {
-            setSelectedLayoutId(contextResponse.payload.defaultLayoutId);
-          }
-
-          if (contextResponse.payload.dataSourceId !== null && contextResponse.payload.dataSourceId !== undefined) {
-            await evaluate(contextResponse.payload.dataSourceId);
-          }
-        }
-      } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : String(err));
-      }
-    };
-    void load();
-    return () => {
-      cancelled = true;
-    };
+    void refreshContextAndEvaluate();
   }, []);
 
   const openOptions = (): void => {
@@ -63,6 +29,7 @@ export function PopupApp(): JSX.Element {
   const evaluate = async (sourceId: number) => {
     setLoading(true);
     setError(null);
+    setResolved([]);
     try {
       const response = await sendMessage({ type: "evaluateDataSource", payload: { dataSourceId: sourceId } });
       if (response.type === "evaluationResult") {
@@ -78,11 +45,35 @@ export function PopupApp(): JSX.Element {
   };
 
   const refreshPreview = () => {
-    if (dataSourceId === null) {
-      setError("No matching data source for this page.");
-      return;
+    void refreshContextAndEvaluate();
+  };
+
+  const refreshContextAndEvaluate = async () => {
+    setLoading(true);
+    setError(null);
+    setResolved([]);
+    try {
+      const contextResponse = await sendMessage({ type: "getActiveTabContext" });
+      if (contextResponse.type === "activeContext") {
+        const context = contextResponse.payload;
+        setDataSourceId(context.dataSourceId ?? null);
+        setDataSourceName(context.dataSourceName ?? "No match");
+        if (context.defaultLayoutId) {
+          setSelectedLayoutId(context.defaultLayoutId);
+        }
+        if (context.dataSourceId !== null && context.dataSourceId !== undefined) {
+          await evaluate(context.dataSourceId);
+          return;
+        }
+        setLoading(false);
+      } else if (contextResponse.type === "error") {
+        setError(contextResponse.payload.message);
+        setLoading(false);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setLoading(false);
     }
-    void evaluate(dataSourceId);
   };
 
   const printLabels = () => {
@@ -152,4 +143,3 @@ export function PopupApp(): JSX.Element {
     </div>
   );
 }
-

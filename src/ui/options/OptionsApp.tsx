@@ -8,7 +8,7 @@ type OptionsSection = "layouts" | "dataSources" | "formats" | "importExport" | "
 type ToolbarElementType = "text" | "qrcode" | "image" | "shape";
 
 const SNAP_GRID = 4;
-const ATTRIBUTE_OPTIONS = ["", "textContent", "href", "src", "value", "title", "aria-label", "data-id", "data-label", "custom"] as const;
+const ATTRIBUTE_OPTIONS = ["", "href", "src", "value", "title", "aria-label", "data-id", "data-label", "custom"] as const;
 
 const FALLBACK_FORMATS: LabelFormat[] = [
   {
@@ -1879,7 +1879,7 @@ function createEmptyMapping(key: string, multiple: boolean): DataSource["variabl
 }
 
 function resolveAttributeOption(attributeName?: string | null): (typeof ATTRIBUTE_OPTIONS)[number] {
-  if (!attributeName) return "";
+  if (!attributeName || attributeName === "textContent") return "";
   const normalized = attributeName.trim();
   return ATTRIBUTE_OPTIONS.includes(normalized as (typeof ATTRIBUTE_OPTIONS)[number]) ? (normalized as (typeof ATTRIBUTE_OPTIONS)[number]) : "custom";
 }

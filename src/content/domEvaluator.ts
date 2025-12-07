@@ -8,10 +8,12 @@ export function evaluateMappings(mappings: DataSourceVariableMapping[]): Resolve
 
     if (mapping.cssSelector) {
       const nodes = Array.from(document.querySelectorAll(mapping.cssSelector));
-      if (mapping.attributeName) {
-        matches = nodes.map((node) => node.getAttribute(mapping.attributeName!) ?? "");
-      } else {
+      const attr = mapping.attributeName;
+      const useTextContent = !attr || attr === "textContent";
+      if (useTextContent) {
         matches = nodes.map((node) => node.textContent ?? "");
+      } else {
+        matches = nodes.map((node) => node.getAttribute(attr!) ?? "");
       }
     }
 
