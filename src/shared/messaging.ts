@@ -1,4 +1,5 @@
 import type { DataSource, LabelLayout } from "../domain/models";
+import type { MappingEvaluationResult } from "./mappingEvaluator";
 
 export interface StatusPayload {
   ready: boolean;
@@ -18,17 +19,34 @@ export interface ActiveTabContext {
   resolvedAt: string;
 }
 
+export interface ResolvedVariable extends MappingEvaluationResult {
+  key: string;
+}
+
 export type MessageRequest =
   | { type: "getStatus" }
   | { type: "getLayouts" }
   | { type: "getDataSources" }
-  | { type: "getActiveTabContext" };
+  | { type: "getActiveTabContext" }
+  | { type: "evaluateDataSource"; payload: { dataSourceId: number } }
+  | { type: "saveLayout"; payload: LabelLayout }
+  | { type: "deleteLayout"; payload: { id: number } }
+  | { type: "saveDataSource"; payload: DataSource }
+  | { type: "deleteDataSource"; payload: { id: number } };
 
 export type MessageResponse =
   | { type: "status"; payload: StatusPayload }
   | { type: "layouts"; payload: LabelLayout[] }
   | { type: "dataSources"; payload: DataSource[] }
   | { type: "activeContext"; payload: ActiveTabContext }
+  | { type: "layoutSaved"; payload: LabelLayout }
+  | { type: "layoutDeleted"; payload: { id: number } }
+  | { type: "dataSourceSaved"; payload: DataSource }
+  | { type: "dataSourceDeleted"; payload: { id: number } }
+  | {
+      type: "evaluationResult";
+      payload: { dataSourceId: number; resolved: ResolvedVariable[]; tabId?: number };
+    }
   | { type: "error"; payload: { message: string } };
 
 export function sendMessage(message: MessageRequest): Promise<MessageResponse> {

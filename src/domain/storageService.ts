@@ -12,7 +12,47 @@ const SAMPLE_LAYOUTS: LabelLayout[] = [
       { key: "asset_key", label: "Asset Key", multiple: false },
       { key: "location", label: "Location", multiple: false }
     ],
-    elements: []
+    elements: [
+      {
+        id: 1,
+        name: "Asset Name",
+        type: "text",
+        positionX: 12,
+        positionY: 12,
+        width: 220,
+        height: 32,
+        rotation: null,
+        fontSize: 18,
+        mode: "dynamic",
+        dynamicBinding: { variableKey: "asset_name" }
+      },
+      {
+        id: 2,
+        name: "Asset Key",
+        type: "text",
+        positionX: 12,
+        positionY: 52,
+        width: 200,
+        height: 26,
+        rotation: null,
+        fontSize: 14,
+        mode: "dynamic",
+        dynamicBinding: { variableKey: "asset_key" }
+      },
+      {
+        id: 3,
+        name: "Location",
+        type: "text",
+        positionX: 12,
+        positionY: 84,
+        width: 200,
+        height: 24,
+        rotation: null,
+        fontSize: 12,
+        mode: "dynamic",
+        dynamicBinding: { variableKey: "location" }
+      }
+    ]
   }
 ];
 

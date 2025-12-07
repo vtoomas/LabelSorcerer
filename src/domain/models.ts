@@ -10,7 +10,7 @@ export interface LayoutVariable {
   multiple: boolean;
 }
 
-export type ElementType = "text" | "qrcode";
+export type ElementType = "text" | "qrcode" | "image" | "shape";
 export type LayoutElementMode = "static" | "dynamic";
 
 export interface LayoutElementDynamicBinding {
@@ -96,6 +96,8 @@ export interface DataSourceVariableMapping {
   prefix?: string | null;
   suffix?: string | null;
   trimWhitespace: boolean;
+  /** Optional attribute to read instead of textContent */
+  attributeName?: string | null;
 
   /** Final resolved value(s) after DOM + regex + transforms */
   value?: string | string[] | null;

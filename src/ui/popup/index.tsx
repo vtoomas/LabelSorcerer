@@ -1,10 +1,10 @@
 import { createRoot } from "react-dom/client";
 import { PopupApp } from "./PopupApp";
 
-const rootElement = document.getElementById("popup-root");
+const root = document.getElementById("popup-root");
 
-if (!rootElement) {
+if (!root) {
   throw new Error("Popup root element not found");
 }
 
-createRoot(rootElement).render(<PopupApp />);
+createRoot(root).render(<PopupApp />);

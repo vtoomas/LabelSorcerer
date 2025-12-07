@@ -1,100 +1,87 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  sendMessage,
-  type MessageResponse,
-  type ActiveTabContext,
-  type StatusPayload
-} from "../../shared/messaging";
-import "./PopupApp.css";
+import { useMemo, useState } from "react";
+import "./popup.css";
 
-function unwrapPayload<T extends MessageResponse["type"]>(
-  response: MessageResponse,
-  expected: T
-): Extract<MessageResponse, { type: T }>["payload"] {
-  if (response.type === expected) {
-    return response.payload as Extract<MessageResponse, { type: T }>["payload"];
-  }
-
-  if (response.type === "error") {
-    throw new Error(response.payload.message);
-  }
-
-  throw new Error(`Unexpected response type: ${response.type}`);
-}
+const previewFields = [
+  { label: "Asset name", value: "At least 50 hallucinated citations…" },
+  { label: "Asset key", value: "KEY-4321" },
+  { label: "Location", value: "San Francisco HQ" }
+];
 
 export function PopupApp() {
-  const [status, setStatus] = useState<StatusPayload | null>(null);
-  const [context, setContext] = useState<ActiveTabContext | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const refreshContext = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const [statusResponse, contextResponse] = await Promise.all([
-        sendMessage({ type: "getStatus" }),
-        sendMessage({ type: "getActiveTabContext" })
-      ]);
-
-      setStatus(unwrapPayload(statusResponse, "status"));
-      setContext(unwrapPayload(contextResponse, "activeContext"));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void refreshContext();
-  }, [refreshContext]);
+  const statusText = useMemo(() => (loading ? "Refreshing…" : "Ready"), [loading]);
 
   const openOptions = () => {
-    const url = chrome.runtime.getURL("options.html");
-
-    if (chrome.windows && chrome.windows.create) {
-      chrome.windows.create({
-        url,
-        type: "popup",
-        width: 1120,
-        height: 900
-      });
-      return;
-    }
-
     chrome.runtime.openOptionsPage?.();
+  };
+
+  const refreshPreview = () => {
+    setLoading(true);
+    setTimeout(() => setLoading(false), 900);
+  };
+
+  const printLabels = () => {
+    // Placeholder for future print implementation.
+    window.focus();
   };
 
   return (
     <div className="popup-card">
-      <h1>LabelSorcerer</h1>
-      {error && <p className="message error">{error}</p>}
-      <div className="meta">
-        <p className="label">Extension version</p>
-        <p className="value">{status?.version ?? "0.1.0"}</p>
-      </div>
-      <div className="meta">
-        <p className="label">Active tab</p>
-        <p className="value">{context?.url ?? "No tab detected"}</p>
-      </div>
-      <div className="meta">
-        <p className="label">Suggested data source</p>
-        <p className="value">{context?.dataSourceName ?? "None"}</p>
-      </div>
-      <div className="meta">
-        <p className="label">Suggested layout</p>
-        <p className="value">{context?.defaultLayoutId ? `#${context.defaultLayoutId}` : "None"}</p>
-      </div>
-      <div className="actions">
-        <button type="button" onClick={() => void refreshContext()} disabled={loading}>
-          {loading ? "Refreshing..." : "Refresh context"}
+      <header className="popup-header">
+        <div className="popup-logo">LS</div>
+        <div className="popup-title-block">
+          <span className="popup-title">LabelSorcerer</span>
+          <span className="popup-subtitle">Live label preview</span>
+        </div>
+      </header>
+
+      <section className="popup-meta">
+        <div className="meta-row">
+          <span className="meta-label">Active data source</span>
+          <span className="meta-value">Jira Assets Detail View</span>
+        </div>
+        <div className="meta-row">
+          <span className="meta-label">Layout</span>
+          <select className="layout-select" value="Jira Asset Small Label" disabled>
+            <option>Jira Asset Small Label</option>
+          </select>
+        </div>
+      </section>
+
+      <section className="popup-preview-section">
+        <div className="preview-header">
+          <span className="preview-title">Live preview</span>
+          <span className="preview-status">{statusText}</span>
+        </div>
+        <div className="preview-canvas">
+          {previewFields.map((field) => (
+            <div key={field.label}>
+              <div className="preview-field-label">{field.label}</div>
+              <div className="preview-field-value">{field.value}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <footer className="popup-footer">
+        <button
+          type="button"
+          className="button-secondary"
+          onClick={refreshPreview}
+          disabled={loading}
+        >
+          {loading ? "Re-evaluating…" : "Re-evaluate"}
         </button>
-        <button type="button" onClick={openOptions}>
-          Open options
+        <button type="button" className="button-primary" onClick={printLabels}>
+          Print
         </button>
-      </div>
+      </footer>
+
+      <button type="button" className="popup-options-link" onClick={openOptions}>
+        Open options
+      </button>
     </div>
   );
 }
+

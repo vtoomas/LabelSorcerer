@@ -1,10 +1,11 @@
 import { createRoot } from "react-dom/client";
 import { OptionsApp } from "./OptionsApp";
+import "./options.css";
 
-const rootElement = document.getElementById("options-root");
+const root = document.getElementById("options-root");
 
-if (!rootElement) {
+if (!root) {
   throw new Error("Options root element not found");
 }
 
-createRoot(rootElement).render(<OptionsApp />);
+createRoot(root).render(<OptionsApp />);
