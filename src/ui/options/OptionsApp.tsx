@@ -1067,7 +1067,12 @@ function DataSourceEditor({ dataSource, layouts, onSave, onCancel, onDelete }: D
                           const value = event.target.value;
                           handleMappingChange(variable.key, (prev) => ({
                             ...prev,
-                            attributeName: value === "custom" ? prev.attributeName ?? "" : value || null,
+                            attributeName:
+                              value === "custom"
+                                ? prev.attributeName && resolveAttributeOption(prev.attributeName) === "custom"
+                                  ? prev.attributeName
+                                  : "custom"
+                                : value || null,
                           }));
                         }}
                       >
@@ -1084,7 +1089,7 @@ function DataSourceEditor({ dataSource, layouts, onSave, onCancel, onDelete }: D
                         <input
                           className="editor-input"
                           type="text"
-                          value={mapping.attributeName ?? ""}
+                          value={resolveAttributeOption(mapping.attributeName) === "custom" ? mapping.attributeName ?? "" : ""}
                           onChange={(event) =>
                             handleMappingChange(variable.key, (prev) => ({ ...prev, attributeName: event.target.value }))
                           }
