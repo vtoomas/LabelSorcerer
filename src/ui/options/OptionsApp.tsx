@@ -1,6 +1,6 @@
 import type { CSSProperties, FormEvent, JSX } from "react";
 import { useEffect, useMemo, useState } from "react";
-import type { LabelFormat, LabelLayout, LayoutElement, LayoutVariable } from "../../domain/models";
+import type { DataSource, LabelFormat, LabelLayout, LayoutElement, LayoutVariable } from "../../domain/models";
 import { sendMessage, type MessageResponse } from "../../shared/messaging";
 import "./options-shell.css";
 
@@ -153,6 +153,39 @@ const MOCK_LAYOUTS: LabelLayout[] = [
   },
 ];
 
+const MOCK_DATA_SOURCES: DataSource[] = [
+  {
+    id: 1,
+    name: "Jira Assets Detail View",
+    urlPattern: "https://jira.example.com/assets/*",
+    defaultLayoutId: 1,
+    variableMappings: [
+      {
+        key: "asset_name",
+        cssSelector: ".title h1",
+        multiple: false,
+        trimWhitespace: true,
+        prefix: "",
+        suffix: "",
+      },
+      {
+        key: "asset_key",
+        cssSelector: ".metadata .key",
+        multiple: false,
+        trimWhitespace: true,
+        prefix: "KEY-",
+        suffix: "",
+      },
+      {
+        key: "location",
+        cssSelector: ".location-tag",
+        multiple: false,
+        trimWhitespace: true,
+      },
+    ],
+  },
+];
+
 export function OptionsApp(): JSX.Element {
   const [section, setSection] = useState<OptionsSection>("layouts");
 
@@ -190,12 +223,12 @@ export function OptionsApp(): JSX.Element {
       </aside>
 
       <main className="options-main">
-        {section === "layouts" ? (
-          <LayoutsWorkspace formats={FALLBACK_FORMATS} />
-        ) : (
+        {section === "layouts" && <LayoutsWorkspace formats={FALLBACK_FORMATS} />}
+        {section === "dataSources" && <DataSourcesWorkspace fallbackLayouts={MOCK_LAYOUTS} />}
+        {section !== "layouts" && section !== "dataSources" && (
           <div className="workspace-placeholder">
             <h1>Coming soon</h1>
-            <p>This section is mocked for now. The layouts area is fully interactive.</p>
+            <p>This section is mocked for now. The layouts and data sources areas are interactive.</p>
           </div>
         )}
       </main>
@@ -353,6 +386,201 @@ function LayoutsWorkspace({ formats }: LayoutsWorkspaceProps): JSX.Element {
         />
       </div>
     </section>
+  );
+}
+
+interface DataSourcesWorkspaceProps {
+  fallbackLayouts: LabelLayout[];
+}
+
+function DataSourcesWorkspace({ fallbackLayouts }: DataSourcesWorkspaceProps): JSX.Element {
+  const [sources, setSources] = useState<DataSource[]>([]);
+  const [layouts, setLayouts] = useState<LabelLayout[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [editingSource, setEditingSource] = useState<DataSource | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [sourcesResponse, layoutsResponse] = await Promise.all([
+          sendMessage({ type: "getDataSources" }),
+          sendMessage({ type: "getLayouts" }),
+        ]);
+        if (cancelled) return;
+        setSources(unwrapDataSources(sourcesResponse));
+        setLayouts(unwrapLayouts(layoutsResponse));
+      } catch {
+        if (cancelled) return;
+        setError("Background not reachable. Using mock data sources.");
+        setSources(MOCK_DATA_SOURCES);
+        setLayouts(fallbackLayouts);
+      } finally {
+        if (cancelled) return;
+        setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [fallbackLayouts]);
+
+  const ensureId = (source: DataSource): DataSource => {
+    if (source.id && source.id > 0) return source;
+    return { ...source, id: Date.now() };
+  };
+
+  const upsertSource = (source: DataSource) => {
+    setSources((prev) => {
+      const existing = prev.findIndex((item) => item.id === source.id);
+      if (existing === -1) return [...prev, source];
+      const copy = [...prev];
+      copy[existing] = source;
+      return copy;
+    });
+  };
+
+  const handleSaveSource = async (draft: DataSource) => {
+    const toSave = ensureId(draft);
+    setStatus(null);
+    try {
+      const response = await sendMessage({ type: "saveDataSource", payload: toSave as any });
+      const saved = unwrapDataSourceSaved(response, toSave);
+      upsertSource(saved);
+      setStatus("Data source saved");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      upsertSource(toSave);
+    } finally {
+      setEditingSource(null);
+    }
+  };
+
+  const handleDeleteSource = async (source: DataSource) => {
+    const confirmed = window.confirm(`Delete data source "${source.name}"?`);
+    if (!confirmed) return;
+    setStatus(null);
+    try {
+      await sendMessage({ type: "deleteDataSource", payload: { id: source.id } });
+      setSources((prev) => prev.filter((item) => item.id !== source.id));
+      setStatus("Data source deleted");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleDuplicate = (source: DataSource) => {
+    const copy = { ...source, id: 0, name: `${source.name} (copy)` };
+    setEditingSource(copy);
+  };
+
+  const handleCreate = () => {
+    const baseLayout = layouts[0] ?? fallbackLayouts[0];
+    const defaultMappings = (baseLayout?.variables ?? []).map((variable) => ({
+      key: variable.key,
+      cssSelector: "",
+      multiple: variable.multiple,
+      trimWhitespace: true,
+    }));
+    setEditingSource({
+      id: 0,
+      name: "New data source",
+      urlPattern: "https://example.com/*",
+      defaultLayoutId: baseLayout?.id ?? 1,
+      variableMappings: defaultMappings,
+    });
+  };
+
+  if (editingSource) {
+    return (
+      <DataSourceEditor
+        dataSource={editingSource}
+        layouts={layouts.length ? layouts : fallbackLayouts}
+        onSave={handleSaveSource}
+        onCancel={() => setEditingSource(null)}
+        onDelete={() => handleDeleteSource(editingSource)}
+      />
+    );
+  }
+
+  return (
+    <section className="workspace">
+      <header className="workspace-header">
+        <div>
+          <p className="eyebrow">Data sources</p>
+          <h1>Connect page data to layouts</h1>
+          <p className="workspace-subtitle">
+            Map DOM selectors and transforms to conceptual variables. Mocked tester UI; storage is wired to background messaging.
+          </p>
+        </div>
+        <button type="button" className="primary-button" onClick={handleCreate} disabled={loading}>
+          + Create data source
+        </button>
+      </header>
+
+      <div className="workspace-card">
+        {error && <p className="workspace-error">{error}</p>}
+        {status && <p className="workspace-status">{status}</p>}
+        <DataSourcesList
+          dataSources={sources}
+          layouts={layouts.length ? layouts : fallbackLayouts}
+          loading={loading}
+          onEdit={setEditingSource}
+          onDuplicate={handleDuplicate}
+          onDelete={handleDeleteSource}
+        />
+      </div>
+    </section>
+  );
+}
+
+interface DataSourcesListProps {
+  dataSources: DataSource[];
+  layouts: LabelLayout[];
+  loading: boolean;
+  onEdit: (source: DataSource) => void;
+  onDuplicate: (source: DataSource) => void;
+  onDelete: (source: DataSource) => void;
+}
+
+function DataSourcesList({ dataSources, layouts, loading, onEdit, onDuplicate, onDelete }: DataSourcesListProps): JSX.Element {
+  const layoutName = (id?: number | null) => layouts.find((layout) => layout.id === id)?.name ?? "No layout";
+  return (
+    <ul className="layout-list">
+      {dataSources.map((source) => (
+        <li key={source.id} className="layout-row">
+          <div className="layout-row-main">
+            <span className="layout-name">{source.name}</span>
+            <span className="layout-meta">
+              Pattern: {source.urlPattern} · Default layout: {layoutName(source.defaultLayoutId)}
+            </span>
+          </div>
+          <div className="layout-row-actions">
+            <button type="button" className="ghost-button" onClick={() => onEdit(source)} disabled={loading}>
+              Edit
+            </button>
+            <button type="button" className="ghost-button" onClick={() => onDuplicate(source)} disabled={loading}>
+              Duplicate
+            </button>
+            <button type="button" className="icon-button" aria-label="Delete data source" onClick={() => onDelete(source)} disabled={loading}>
+              ×
+            </button>
+          </div>
+        </li>
+      ))}
+      {dataSources.length === 0 && !loading && (
+        <li className="layout-row empty-row">
+          <div className="layout-row-main">
+            <span className="layout-meta">No data sources yet. Create one to bind selectors to variables.</span>
+          </div>
+        </li>
+      )}
+    </ul>
   );
 }
 
@@ -667,6 +895,259 @@ function LayoutEditorView({ formats, initialLayout, onSave, onCancel, onDelete }
   );
 }
 
+interface DataSourceEditorProps {
+  dataSource: DataSource;
+  layouts: LabelLayout[];
+  onSave: (dataSource: DataSource) => Promise<void> | void;
+  onCancel: () => void;
+  onDelete: () => void;
+}
+
+function DataSourceEditor({ dataSource, layouts, onSave, onCancel, onDelete }: DataSourceEditorProps): JSX.Element {
+  const [draft, setDraft] = useState<DataSource>(() => ({ ...dataSource, variableMappings: dataSource.variableMappings.map((m) => ({ ...m })) }));
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const selectedLayout = useMemo(
+    () => layouts.find((layout) => layout.id === draft.defaultLayoutId) ?? layouts[0],
+    [draft.defaultLayoutId, layouts],
+  );
+
+  useEffect(() => {
+    if (!selectedLayout) return;
+    setDraft((prev) => ensureMappingsForLayout(prev, selectedLayout));
+  }, [selectedLayout]);
+
+  const handleMappingChange = (key: string, updater: (mapping: DataSource["variableMappings"][number]) => DataSource["variableMappings"][number]) => {
+    setDraft((prev) => ({
+      ...prev,
+      variableMappings: prev.variableMappings.map((mapping) => (mapping.key === key ? updater(mapping) : mapping)),
+    }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave({ ...draft, name: draft.name.trim() || "Untitled data source" });
+      onCancel();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="layout-editor">
+      <header className="layout-editor-header">
+        <div className="layout-editor-title">
+          <button type="button" className="ghost-button" onClick={onCancel}>
+            ← Back
+          </button>
+          <h1>Data source</h1>
+          <p className="workspace-subtitle">Assign selectors and transforms for each layout variable.</p>
+        </div>
+        <div className="layout-editor-header-actions">
+          <button type="button" className="ghost-button" onClick={onDelete}>
+            Delete
+          </button>
+          <button type="button" className="primary-button" onClick={handleSave} disabled={saving}>
+            Save data source
+          </button>
+        </div>
+      </header>
+
+      <div className="layout-editor-meta-row">
+        <label className="editor-field">
+          <span>Name</span>
+          <input
+            className="editor-input"
+            type="text"
+            value={draft.name}
+            onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
+            placeholder="Jira Assets Detail View"
+          />
+        </label>
+        <label className="editor-field">
+          <span>URL pattern</span>
+          <input
+            className="editor-input"
+            type="text"
+            value={draft.urlPattern}
+            onChange={(event) => setDraft((prev) => ({ ...prev, urlPattern: event.target.value }))}
+            placeholder="https://jira.example.com/assets/*"
+          />
+        </label>
+        <label className="editor-field">
+          <span>Default layout</span>
+          <select
+            className="editor-input"
+            value={draft.defaultLayoutId ?? ""}
+            onChange={(event) => setDraft((prev) => ({ ...prev, defaultLayoutId: Number(event.target.value) }))}
+          >
+            {layouts.map((layout) => (
+              <option key={layout.id} value={layout.id}>
+                {layout.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="layout-editor-grid" style={{ gridTemplateColumns: "320px minmax(540px, 1fr)" }}>
+        <div className="layout-editor-column variables-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Variables</p>
+              <h3 className="layout-editor-section-title">Required by layout</h3>
+            </div>
+          </div>
+          <p className="layout-editor-helper">
+            Variables come from the selected layout. Each needs a selector mapping on the right.
+          </p>
+          <ul className="layout-editor-variable-list">
+            {(selectedLayout?.variables ?? []).map((variable) => (
+              <li key={variable.key} className="layout-editor-variable-row">
+                <div className="variable-row-meta">
+                  <div>
+                    <div className="variable-label">{variable.label}</div>
+                    <div className="variable-key">key: {variable.key}</div>
+                  </div>
+                  <div className="variable-actions">
+                    <span className="variable-usage">{variable.multiple ? "multiple" : "single"}</span>
+                  </div>
+                </div>
+              </li>
+            ))}
+            {!selectedLayout && <li className="variable-empty">No layout selected.</li>}
+          </ul>
+        </div>
+
+        <div className="layout-editor-column properties-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Mappings</p>
+              <h3 className="layout-editor-section-title">Selector & transforms</h3>
+            </div>
+          </div>
+          <div className="mapping-stack">
+            {(selectedLayout?.variables ?? []).map((variable) => {
+              const mapping =
+                draft.variableMappings.find((entry) => entry.key === variable.key) ??
+                createEmptyMapping(variable.key, variable.multiple);
+              return (
+                <div key={variable.key} className="mapping-card">
+                  <div className="mapping-card-header">
+                    <div>
+                      <div className="mapping-title">{variable.label}</div>
+                      <div className="mapping-key">key: {variable.key}</div>
+                    </div>
+                  </div>
+                  <div className="properties-grid">
+                    <label className="editor-field">
+                      <span>CSS selector</span>
+                      <input
+                        className="editor-input"
+                        type="text"
+                        value={mapping.cssSelector}
+                        onChange={(event) =>
+                          handleMappingChange(variable.key, (prev) => ({ ...prev, cssSelector: event.target.value }))
+                        }
+                        placeholder=".header h1"
+                      />
+                    </label>
+                    <label className="editor-field">
+                      <span>Attribute (optional)</span>
+                      <input
+                        className="editor-input"
+                        type="text"
+                        value={mapping.attributeName ?? ""}
+                        onChange={(event) =>
+                          handleMappingChange(variable.key, (prev) => ({ ...prev, attributeName: event.target.value || null }))
+                        }
+                        placeholder="href, data-id, textContent"
+                      />
+                    </label>
+                    <label className="editor-field">
+                      <span>Regex pattern</span>
+                      <input
+                        className="editor-input"
+                        type="text"
+                        value={mapping.regexPattern ?? ""}
+                        onChange={(event) =>
+                          handleMappingChange(variable.key, (prev) => ({ ...prev, regexPattern: event.target.value || null }))
+                        }
+                        placeholder="(.*)"
+                      />
+                    </label>
+                    <label className="editor-field">
+                      <span>Regex index</span>
+                      <input
+                        className="editor-input"
+                        type="number"
+                        value={mapping.regexMatchIndex ?? 0}
+                        onChange={(event) =>
+                          handleMappingChange(variable.key, (prev) => ({ ...prev, regexMatchIndex: Number(event.target.value) }))
+                        }
+                      />
+                    </label>
+                    <label className="editor-field">
+                      <span>Prefix</span>
+                      <input
+                        className="editor-input"
+                        type="text"
+                        value={mapping.prefix ?? ""}
+                        onChange={(event) =>
+                          handleMappingChange(variable.key, (prev) => ({ ...prev, prefix: event.target.value || null }))
+                        }
+                      />
+                    </label>
+                    <label className="editor-field">
+                      <span>Suffix</span>
+                      <input
+                        className="editor-input"
+                        type="text"
+                        value={mapping.suffix ?? ""}
+                        onChange={(event) =>
+                          handleMappingChange(variable.key, (prev) => ({ ...prev, suffix: event.target.value || null }))
+                        }
+                      />
+                    </label>
+                    <label className="editor-field checkbox-field">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(mapping.trimWhitespace)}
+                        onChange={(event) =>
+                          handleMappingChange(variable.key, (prev) => ({ ...prev, trimWhitespace: event.target.checked }))
+                        }
+                      />
+                      <span>Trim whitespace</span>
+                    </label>
+                    <label className="editor-field checkbox-field">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(mapping.multiple)}
+                        onChange={(event) =>
+                          handleMappingChange(variable.key, (prev) => ({ ...prev, multiple: event.target.checked }))
+                        }
+                      />
+                      <span>Expect multiple values</span>
+                    </label>
+                  </div>
+                  <div className="mapping-hint">Selector tester coming soon.</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {error && <p className="workspace-error">{error}</p>}
+    </section>
+  );
+}
+
 interface CanvasPreviewProps {
   layout: LabelLayout;
   format?: LabelFormat;
@@ -971,6 +1452,32 @@ function VariableDialog({ variable, onSave, onCancel }: VariableDialogProps): JS
   );
 }
 
+function ensureMappingsForLayout(dataSource: DataSource, layout: LabelLayout): DataSource {
+  const existing = new Map(dataSource.variableMappings.map((mapping) => [mapping.key, mapping]));
+  const updatedMappings = layout.variables.map((variable) => {
+    const current = existing.get(variable.key);
+    if (current) {
+      return { ...current, multiple: variable.multiple };
+    }
+    return createEmptyMapping(variable.key, variable.multiple);
+  });
+  return { ...dataSource, variableMappings: updatedMappings };
+}
+
+function createEmptyMapping(key: string, multiple: boolean): DataSource["variableMappings"][number] {
+  return {
+    key,
+    cssSelector: "",
+    multiple,
+    trimWhitespace: true,
+    attributeName: null,
+    regexPattern: null,
+    regexMatchIndex: 0,
+    prefix: null,
+    suffix: null,
+  };
+}
+
 function unwrapLayouts(response: MessageResponse): LabelLayout[] {
   if (response.type === "layouts") {
     return response.payload;
@@ -983,6 +1490,26 @@ function unwrapLayouts(response: MessageResponse): LabelLayout[] {
 
 function unwrapLayoutSaved(response: MessageResponse, fallback: LabelLayout): LabelLayout {
   if (response.type === "layoutSaved") {
+    return response.payload;
+  }
+  if (response.type === "error") {
+    throw new Error(response.payload.message);
+  }
+  return fallback;
+}
+
+function unwrapDataSources(response: MessageResponse): DataSource[] {
+  if (response.type === "dataSources") {
+    return response.payload;
+  }
+  if (response.type === "error") {
+    throw new Error(response.payload.message);
+  }
+  throw new Error("Unexpected response when loading data sources");
+}
+
+function unwrapDataSourceSaved(response: MessageResponse, fallback: DataSource): DataSource {
+  if (response.type === "dataSourceSaved") {
     return response.payload;
   }
   if (response.type === "error") {
