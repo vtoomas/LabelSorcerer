@@ -378,13 +378,6 @@
   color: #1c1c1e;
 }
 
-.layout-canvas-stage {
-  padding: 0.75rem;
-  border-radius: 1rem;
-  border: 1px dashed #d8dbe2;
-  background: linear-gradient(135deg, rgba(91, 75, 205, 0.08), rgba(91, 75, 205, 0.02));
-}
-
 .layout-canvas-surface {
   margin: 0 auto;
   position: relative;

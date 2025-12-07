@@ -683,37 +683,35 @@ function CanvasPreview({ layout, format, selectedElementId, onSelect }: CanvasPr
   const stageHeight = canvasHeight * scale;
 
   return (
-    <div className="layout-canvas-stage" style={{ width: stageWidth + 32 }}>
-      <div
-        className="layout-canvas-surface"
-        style={{ width: stageWidth, height: stageHeight }}
-        aria-label="Label canvas"
-      >
-        <div className="layout-canvas-inner" style={{ width: stageWidth, height: stageHeight }}>
-          {layout.elements.map((element) => {
-            const style: CSSProperties = {
-              left: element.positionX * scale,
-              top: element.positionY * scale,
-              width: element.width * scale,
-              height: element.height * scale,
-              fontSize: element.fontSize ? element.fontSize * scale : undefined,
-            };
-            return (
-              <button
-                key={element.id}
-                type="button"
-                className={`layout-canvas-element ${selectedElementId === element.id ? "is-selected" : ""}`}
-                style={style}
-                onClick={() => onSelect(element.id)}
-              >
-                <span className="element-label">{element.name}</span>
-                <span className="element-meta">
-                  {element.type === "text" ? element.dynamicBinding?.variableKey || "static" : element.type}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+    <div
+      className="layout-canvas-surface"
+      style={{ width: stageWidth, height: stageHeight, margin: "0 auto" }}
+      aria-label="Label canvas"
+    >
+      <div className="layout-canvas-inner" style={{ width: stageWidth, height: stageHeight }}>
+        {layout.elements.map((element) => {
+          const style: CSSProperties = {
+            left: element.positionX * scale,
+            top: element.positionY * scale,
+            width: element.width * scale,
+            height: element.height * scale,
+            fontSize: element.fontSize ? element.fontSize * scale : undefined,
+          };
+          return (
+            <button
+              key={element.id}
+              type="button"
+              className={`layout-canvas-element ${selectedElementId === element.id ? "is-selected" : ""}`}
+              style={style}
+              onClick={() => onSelect(element.id)}
+            >
+              <span className="element-label">{element.name}</span>
+              <span className="element-meta">
+                {element.type === "text" ? element.dynamicBinding?.variableKey || "static" : element.type}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
