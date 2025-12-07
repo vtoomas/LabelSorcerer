@@ -1,29 +1,92 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { LabelLayout } from "../../domain/models";
+import { sendMessage, type ResolvedVariable } from "../../shared/messaging";
 import "./popup.css";
 
-const previewFields = [
-  { label: "Asset name", value: "At least 50 hallucinated citations…" },
-  { label: "Asset key", value: "KEY-4321" },
-  { label: "Location", value: "San Francisco HQ" }
-];
-
-export function PopupApp() {
+export function PopupApp(): JSX.Element {
+  const [layouts, setLayouts] = useState<LabelLayout[]>([]);
+  const [resolved, setResolved] = useState<ResolvedVariable[]>([]);
+  const [selectedLayoutId, setSelectedLayoutId] = useState<number | null>(null);
+  const [dataSourceName, setDataSourceName] = useState<string>("–");
+  const [dataSourceId, setDataSourceId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const statusText = useMemo(() => (loading ? "Refreshing…" : "Ready"), [loading]);
+  const statusText = useMemo(() => {
+    if (loading) return "Refreshing…";
+    if (dataSourceId === null) return "No matching data source for this page";
+    return "Ready";
+  }, [loading, dataSourceId]);
 
-  const openOptions = () => {
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setError(null);
+      try {
+        const [layoutResponse, contextResponse] = await Promise.all([
+          sendMessage({ type: "getLayouts" }),
+          sendMessage({ type: "getActiveTabContext" }),
+        ]);
+
+        if (cancelled) return;
+        if (layoutResponse.type === "layouts") {
+          setLayouts(layoutResponse.payload);
+          setSelectedLayoutId(layoutResponse.payload[0]?.id ?? null);
+        }
+
+        if (contextResponse.type === "activeContext") {
+          setDataSourceId(contextResponse.payload.dataSourceId ?? null);
+          setDataSourceName(contextResponse.payload.dataSourceName ?? "No match");
+          if (contextResponse.payload.defaultLayoutId) {
+            setSelectedLayoutId(contextResponse.payload.defaultLayoutId);
+          }
+
+          if (contextResponse.payload.dataSourceId !== null && contextResponse.payload.dataSourceId !== undefined) {
+            await evaluate(contextResponse.payload.dataSourceId);
+          }
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const openOptions = (): void => {
     chrome.runtime.openOptionsPage?.();
   };
 
-  const refreshPreview = () => {
+  const evaluate = async (sourceId: number) => {
     setLoading(true);
-    setTimeout(() => setLoading(false), 900);
+    setError(null);
+    try {
+      const response = await sendMessage({ type: "evaluateDataSource", payload: { dataSourceId: sourceId } });
+      if (response.type === "evaluationResult") {
+        setResolved(response.payload.resolved);
+      } else if (response.type === "error") {
+        setError(response.payload.message);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshPreview = () => {
+    if (dataSourceId === null) {
+      setError("No matching data source for this page.");
+      return;
+    }
+    void evaluate(dataSourceId);
   };
 
   const printLabels = () => {
-    // Placeholder for future print implementation.
-    window.focus();
+    window.print();
   };
 
   return (
@@ -39,12 +102,20 @@ export function PopupApp() {
       <section className="popup-meta">
         <div className="meta-row">
           <span className="meta-label">Active data source</span>
-          <span className="meta-value">Jira Assets Detail View</span>
+          <span className="meta-value">{dataSourceName}</span>
         </div>
         <div className="meta-row">
           <span className="meta-label">Layout</span>
-          <select className="layout-select" value="Jira Asset Small Label" disabled>
-            <option>Jira Asset Small Label</option>
+          <select
+            className="layout-select"
+            value={selectedLayoutId ?? ""}
+            onChange={(event) => setSelectedLayoutId(Number(event.target.value))}
+          >
+            {layouts.map((layout) => (
+              <option key={layout.id} value={layout.id}>
+                {layout.name}
+              </option>
+            ))}
           </select>
         </div>
       </section>
@@ -54,23 +125,20 @@ export function PopupApp() {
           <span className="preview-title">Live preview</span>
           <span className="preview-status">{statusText}</span>
         </div>
+        {error && <p className="preview-error">{error}</p>}
         <div className="preview-canvas">
-          {previewFields.map((field) => (
-            <div key={field.label}>
-              <div className="preview-field-label">{field.label}</div>
-              <div className="preview-field-value">{field.value}</div>
+          {resolved.length === 0 && !error && <div className="preview-placeholder">No values resolved yet.</div>}
+          {resolved.map((field) => (
+            <div key={field.key}>
+              <div className="preview-field-label">{field.key}</div>
+              <div className="preview-field-value">{field.value || "—"}</div>
             </div>
           ))}
         </div>
       </section>
 
       <footer className="popup-footer">
-        <button
-          type="button"
-          className="button-secondary"
-          onClick={refreshPreview}
-          disabled={loading}
-        >
+        <button type="button" className="button-secondary" onClick={refreshPreview} disabled={loading}>
           {loading ? "Re-evaluating…" : "Re-evaluate"}
         </button>
         <button type="button" className="button-primary" onClick={printLabels}>
