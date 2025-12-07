@@ -294,6 +294,7 @@
   border: 1px solid #e4e6ee;
   padding: 0.85rem 0.9rem;
   box-shadow: 0 8px 30px rgba(15, 23, 42, 0.05);
+  overflow: auto;
 }
 
 .panel-heading {
