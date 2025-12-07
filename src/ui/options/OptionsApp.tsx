@@ -189,6 +189,27 @@ const MOCK_DATA_SOURCES: DataSource[] = [
 
 export function OptionsApp(): JSX.Element {
   const [section, setSection] = useState<OptionsSection>("layouts");
+  const [formats, setFormats] = useState<LabelFormat[]>(FALLBACK_FORMATS);
+  const [formatsStatus, setFormatsStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadFormats = async () => {
+      try {
+        const response = await sendMessage({ type: "getLabelFormats" });
+        if (cancelled) return;
+        setFormats(unwrapLabelFormats(response));
+      } catch (err) {
+        if (cancelled) return;
+        setFormatsStatus(err instanceof Error ? err.message : String(err));
+        setFormats(FALLBACK_FORMATS);
+      }
+    };
+    void loadFormats();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="options-shell">
@@ -224,14 +245,10 @@ export function OptionsApp(): JSX.Element {
       </aside>
 
       <main className="options-main">
-        {section === "layouts" && <LayoutsWorkspace formats={FALLBACK_FORMATS} />}
+        {section === "layouts" && <LayoutsWorkspace formats={formats} />}
         {section === "dataSources" && <DataSourcesWorkspace fallbackLayouts={MOCK_LAYOUTS} />}
-        {section !== "layouts" && section !== "dataSources" && (
-          <div className="workspace-placeholder">
-            <h1>Coming soon</h1>
-            <p>This section is mocked for now. The layouts and data sources areas are interactive.</p>
-          </div>
-        )}
+        {section === "formats" && <LabelFormatsWorkspace formats={formats} onChange={setFormats} />}
+        {section === "importExport" && <ImportExportWorkspace />}
       </main>
     </div>
   );
@@ -539,6 +556,269 @@ function DataSourcesWorkspace({ fallbackLayouts }: DataSourcesWorkspaceProps): J
     </section>
   );
 }
+
+interface LabelFormatsWorkspaceProps {
+  formats: LabelFormat[];
+  onChange: (formats: LabelFormat[]) => void;
+}
+
+function LabelFormatsWorkspace({ formats, onChange }: LabelFormatsWorkspaceProps): JSX.Element {
+  const [editingFormat, setEditingFormat] = useState<LabelFormat | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCreate = () => {
+    setEditingFormat(createBlankFormat());
+  };
+
+  const handleDuplicate = (format: LabelFormat) => {
+    setEditingFormat({ ...format, id: 0, name: `${format.name} (copy)` });
+  };
+
+  const handleDelete = (format: LabelFormat) => {
+    const confirmed = window.confirm(`Delete format "${format.name}"?`);
+    if (!confirmed) return;
+    setStatus(null);
+    setError(null);
+    void sendMessage({ type: "deleteLabelFormat", payload: { id: format.id } })
+      .then(() => {
+        onChange(formats.filter((entry) => entry.id !== format.id));
+        setStatus("Format deleted");
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : String(err));
+      });
+  };
+
+  const handleSave = (format: LabelFormat) => {
+    const normalized = format.id > 0 ? format : { ...format, id: Date.now() };
+    const existing = formats.findIndex((entry) => entry.id === normalized.id);
+    if (existing === -1) {
+      onChange([...formats, normalized]);
+    } else {
+      const copy = [...formats];
+      copy[existing] = normalized;
+      onChange(copy);
+    }
+    setStatus(null);
+    setError(null);
+    void sendMessage({ type: "saveLabelFormat", payload: normalized })
+      .then((response) => {
+        if (response.type === "labelFormatSaved") {
+          const saved = response.payload;
+          const nextFormats = formats.some((f) => f.id === saved.id)
+            ? formats.map((f) => (f.id === saved.id ? saved : f))
+            : [...formats, saved];
+          onChange(nextFormats);
+          setStatus("Format saved");
+        } else if (response.type === "error") {
+          setError(response.payload.message);
+        }
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setEditingFormat(null));
+  };
+
+  if (editingFormat) {
+    return (
+      <LabelFormatEditor
+        format={editingFormat}
+        onSave={handleSave}
+        onCancel={() => setEditingFormat(null)}
+        onDelete={() => handleDelete(editingFormat)}
+      />
+    );
+  }
+
+  return (
+    <section className="workspace">
+      <header className="workspace-header">
+        <div>
+          <p className="eyebrow">Label formats</p>
+          <h1>Define label sizes & margins</h1>
+          <p className="workspace-subtitle">Formats are stored with the extension. Update dimensions and margins as needed.</p>
+        </div>
+        <button type="button" className="primary-button" onClick={handleCreate}>
+          + Create format
+        </button>
+      </header>
+      <div className="workspace-card">
+        {error && <p className="workspace-error">{error}</p>}
+        {status && <p className="workspace-status">{status}</p>}
+        <LabelFormatsList formats={formats} onEdit={setEditingFormat} onDuplicate={handleDuplicate} onDelete={handleDelete} />
+      </div>
+    </section>
+  );
+}
+
+interface LabelFormatsListProps {
+  formats: LabelFormat[];
+  onEdit: (format: LabelFormat) => void;
+  onDuplicate: (format: LabelFormat) => void;
+  onDelete: (format: LabelFormat) => void;
+}
+
+function LabelFormatsList({ formats, onEdit, onDuplicate, onDelete }: LabelFormatsListProps): JSX.Element {
+  return (
+    <ul className="layout-list">
+      {formats.map((format) => (
+        <li key={format.id} className="layout-row">
+          <div className="layout-row-main">
+            <span className="layout-name">{format.name}</span>
+            <span className="layout-meta">
+              {format.widthPx} × {format.heightPx} px · Margins T{format.marginTopPx} R{format.marginRightPx} B{format.marginBottomPx} L
+              {format.marginLeftPx}
+            </span>
+          </div>
+          <div className="layout-row-actions">
+            <button type="button" className="ghost-button" onClick={() => onEdit(format)}>
+              Edit
+            </button>
+            <button type="button" className="ghost-button" onClick={() => onDuplicate(format)}>
+              Duplicate
+            </button>
+            <button type="button" className="icon-button" aria-label="Delete format" onClick={() => onDelete(format)}>
+              ×
+            </button>
+          </div>
+        </li>
+      ))}
+      {formats.length === 0 && (
+        <li className="layout-row empty-row">
+          <div className="layout-row-main">
+            <span className="layout-meta">No formats yet. Create one to begin.</span>
+          </div>
+        </li>
+      )}
+    </ul>
+  );
+}
+
+interface LabelFormatEditorProps {
+  format: LabelFormat;
+  onSave: (format: LabelFormat) => void;
+  onCancel: () => void;
+  onDelete: () => void;
+}
+
+function LabelFormatEditor({ format, onSave, onCancel, onDelete }: LabelFormatEditorProps): JSX.Element {
+  const [draft, setDraft] = useState<LabelFormat>(format);
+
+  const handleChange = (field: keyof LabelFormat, value: string | number | null) => {
+    setDraft((prev) => ({ ...prev, [field]: value as any }));
+  };
+
+  const handleSave = () => {
+    const sanitized = { ...draft, name: draft.name.trim() || "Untitled format" };
+    onSave(sanitized);
+  };
+
+  return (
+    <section className="workspace">
+      <header className="workspace-header">
+        <div>
+          <p className="eyebrow">Label format</p>
+          <h1>Edit label dimensions</h1>
+          <p className="workspace-subtitle">Widths/heights in px; margins define printable area.</p>
+        </div>
+        <div className="layout-editor-header-actions">
+          <button type="button" className="ghost-button" onClick={onDelete}>
+            Delete
+          </button>
+          <button type="button" className="primary-button" onClick={handleSave}>
+            Save format
+          </button>
+        </div>
+      </header>
+
+      <div className="workspace-card">
+        <div className="layout-editor-meta-row">
+          <label className="editor-field">
+            <span>Name</span>
+            <input className="editor-input" type="text" value={draft.name} onChange={(event) => handleChange("name", event.target.value)} />
+          </label>
+          <label className="editor-field">
+            <span>Description</span>
+            <input
+              className="editor-input"
+              type="text"
+              value={draft.description ?? ""}
+              onChange={(event) => handleChange("description", event.target.value || null)}
+            />
+          </label>
+        </div>
+
+        <div className="properties-grid">
+          <label className="editor-field">
+            <span>Width (px)</span>
+            <input
+              className="editor-input"
+              type="number"
+              value={draft.widthPx}
+              onChange={(event) => handleChange("widthPx", Number(event.target.value))}
+            />
+          </label>
+          <label className="editor-field">
+            <span>Height (px)</span>
+            <input
+              className="editor-input"
+              type="number"
+              value={draft.heightPx}
+              onChange={(event) => handleChange("heightPx", Number(event.target.value))}
+            />
+          </label>
+          <label className="editor-field">
+            <span>Margin top (px)</span>
+            <input
+              className="editor-input"
+              type="number"
+              value={draft.marginTopPx}
+              onChange={(event) => handleChange("marginTopPx", Number(event.target.value))}
+            />
+          </label>
+          <label className="editor-field">
+            <span>Margin right (px)</span>
+            <input
+              className="editor-input"
+              type="number"
+              value={draft.marginRightPx}
+              onChange={(event) => handleChange("marginRightPx", Number(event.target.value))}
+            />
+          </label>
+          <label className="editor-field">
+            <span>Margin bottom (px)</span>
+            <input
+              className="editor-input"
+              type="number"
+              value={draft.marginBottomPx}
+              onChange={(event) => handleChange("marginBottomPx", Number(event.target.value))}
+            />
+          </label>
+          <label className="editor-field">
+            <span>Margin left (px)</span>
+            <input
+              className="editor-input"
+              type="number"
+              value={draft.marginLeftPx}
+              onChange={(event) => handleChange("marginLeftPx", Number(event.target.value))}
+            />
+          </label>
+        </div>
+
+        <div style={{ marginTop: "0.75rem", display: "flex", gap: "0.5rem" }}>
+          <button type="button" className="ghost-button" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="primary-button" onClick={handleSave}>
+            Save format
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
 
 interface DataSourcesListProps {
   dataSources: DataSource[];
@@ -1644,6 +1924,16 @@ function unwrapDataSourceSaved(response: MessageResponse, fallback: DataSource):
   return fallback;
 }
 
+function unwrapLabelFormats(response: MessageResponse): LabelFormat[] {
+  if (response.type === "labelFormats") {
+    return response.payload;
+  }
+  if (response.type === "error") {
+    throw new Error(response.payload.message);
+  }
+  throw new Error("Unexpected response when loading label formats");
+}
+
 function cloneLayout(layout: LabelLayout): LabelLayout {
   return {
     ...layout,
@@ -1808,4 +2098,126 @@ function createElement(type: ToolbarElementType, layout: LabelLayout, format?: L
 
 function applySnap(value: number): number {
   return Math.round(value / SNAP_GRID) * SNAP_GRID;
+}
+
+function createBlankFormat(): LabelFormat {
+  return {
+    id: 0,
+    name: "New format",
+    widthPx: 600,
+    heightPx: 320,
+    marginTopPx: 10,
+    marginRightPx: 10,
+    marginBottomPx: 10,
+    marginLeftPx: 10,
+    description: "Custom size",
+  };
+}
+
+function ImportExportWorkspace(): JSX.Element {
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const handleExport = async () => {
+    setBusy(true);
+    setStatus(null);
+    setError(null);
+    try {
+      const [formatsResp, layoutsResp, dataSourcesResp] = await Promise.all([
+        sendMessage({ type: "getLabelFormats" }),
+        sendMessage({ type: "getLayouts" }),
+        sendMessage({ type: "getDataSources" }),
+      ]);
+      const json = JSON.stringify(
+        {
+          labelFormats: unwrapLabelFormats(formatsResp),
+          layouts: unwrapLayouts(layoutsResp),
+          dataSources: unwrapDataSources(dataSourcesResp),
+          exportedAt: new Date().toISOString(),
+        },
+        null,
+        2,
+      );
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "labelsorcerer-export.json";
+      link.click();
+      URL.revokeObjectURL(url);
+      setStatus("Exported configuration.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    setStatus(null);
+    setError(null);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as Partial<{
+        labelFormats: LabelFormat[];
+        layouts: LabelLayout[];
+        dataSources: DataSource[];
+      }>;
+      const formats = parsed.labelFormats ?? [];
+      const layouts = parsed.layouts ?? [];
+      const dataSources = parsed.dataSources ?? [];
+
+      for (const format of formats) {
+        await sendMessage({ type: "saveLabelFormat", payload: format });
+      }
+      for (const layout of layouts) {
+        await sendMessage({ type: "saveLayout", payload: layout });
+      }
+      for (const source of dataSources) {
+        await sendMessage({ type: "saveDataSource", payload: source });
+      }
+
+      setStatus("Imported formats, layouts, and data sources.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+      event.target.value = "";
+    }
+  };
+
+  return (
+    <section className="workspace">
+      <header className="workspace-header">
+        <div>
+          <p className="eyebrow">Import / Export</p>
+          <h1>Move configs between machines</h1>
+          <p className="workspace-subtitle">Export all label formats, layouts, and data sources as JSON or import from a file.</p>
+        </div>
+      </header>
+      <div className="workspace-card">
+        {error && <p className="workspace-error">{error}</p>}
+        {status && <p className="workspace-status">{status}</p>}
+        <div className="layout-editor-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+          <div className="layout-editor-column">
+            <h3 className="layout-editor-section-title">Export</h3>
+            <p className="layout-editor-helper">Download a JSON file containing formats, layouts, and data sources.</p>
+            <button type="button" className="primary-button" onClick={handleExport} disabled={busy}>
+              Export JSON
+            </button>
+          </div>
+          <div className="layout-editor-column">
+            <h3 className="layout-editor-section-title">Import</h3>
+            <p className="layout-editor-helper">Import a JSON file exported from LabelSorcerer.</p>
+            <input type="file" accept="application/json" onChange={handleImport} disabled={busy} />
+            <p className="layout-editor-helper">Import will merge into existing items; duplicates may be overwritten by matching IDs.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }

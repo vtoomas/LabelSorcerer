@@ -12,6 +12,7 @@ import {
   saveDataSource,
   deleteDataSource
 } from "../domain/dataSourceService";
+import { getLabelFormats, saveLabelFormat, deleteLabelFormat } from "../domain/labelFormatService";
 import { deleteLayout, getLayouts, saveLayout } from "../domain/layoutService";
 
 const BUILD_VERSION = "0.1.0";
@@ -109,6 +110,8 @@ async function handleMessage(message: MessageRequest): Promise<MessageResponse> 
       return { type: "status", payload: await buildStatus() };
     case "getLayouts":
       return { type: "layouts", payload: await getLayouts() };
+    case "getLabelFormats":
+      return { type: "labelFormats", payload: await getLabelFormats() };
     case "getDataSources":
       return { type: "dataSources", payload: await getDataSources() };
     case "saveLayout":
@@ -116,6 +119,11 @@ async function handleMessage(message: MessageRequest): Promise<MessageResponse> 
     case "deleteLayout":
       await deleteLayout(message.payload.id);
       return { type: "layoutDeleted", payload: { id: message.payload.id } };
+    case "saveLabelFormat":
+      return { type: "labelFormatSaved", payload: await saveLabelFormat(message.payload) };
+    case "deleteLabelFormat":
+      await deleteLabelFormat(message.payload.id);
+      return { type: "labelFormatDeleted", payload: { id: message.payload.id } };
     case "saveDataSource":
       return { type: "dataSourceSaved", payload: await saveDataSource(message.payload) };
     case "deleteDataSource":

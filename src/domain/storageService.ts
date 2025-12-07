@@ -1,6 +1,31 @@
-import type { DataSource, LabelLayout } from "./models";
+import type { DataSource, LabelFormat, LabelLayout } from "./models";
 
 const STORAGE_KEY = "labelsorcerer:config";
+
+const SAMPLE_FORMATS: LabelFormat[] = [
+  {
+    id: 1,
+    name: "62 x 29 mm",
+    widthPx: 620,
+    heightPx: 290,
+    marginTopPx: 10,
+    marginBottomPx: 10,
+    marginLeftPx: 10,
+    marginRightPx: 10,
+    description: "Sample wide label"
+  },
+  {
+    id: 2,
+    name: "57 x 32 mm",
+    widthPx: 570,
+    heightPx: 320,
+    marginTopPx: 10,
+    marginBottomPx: 10,
+    marginLeftPx: 10,
+    marginRightPx: 10,
+    description: "Compact QR label"
+  }
+];
 
 const SAMPLE_LAYOUTS: LabelLayout[] = [
   {
@@ -113,15 +138,19 @@ const SAMPLE_DATA_SOURCES: DataSource[] = [
 
 export interface Config {
   layouts: LabelLayout[];
+  labelFormats: LabelFormat[];
   dataSources: DataSource[];
   nextLayoutId: number;
+  nextLabelFormatId: number;
   nextDataSourceId: number;
 }
 
 const DEFAULT_CONFIG: Config = {
   layouts: SAMPLE_LAYOUTS,
+  labelFormats: SAMPLE_FORMATS,
   dataSources: SAMPLE_DATA_SOURCES,
   nextLayoutId: SAMPLE_LAYOUTS.length + 1,
+  nextLabelFormatId: SAMPLE_FORMATS.length + 1,
   nextDataSourceId: SAMPLE_DATA_SOURCES.length + 1
 };
 
@@ -143,11 +172,9 @@ async function readStorage(): Promise<Record<string, unknown>> {
 
 export async function getConfig(): Promise<Config> {
   const stored = await readStorage();
-  const raw = stored[STORAGE_KEY] as Config | undefined;
-  if (!raw) {
-    return clone(DEFAULT_CONFIG);
-  }
-  return clone(raw);
+  const raw = stored[STORAGE_KEY] as Partial<Config> | undefined;
+  const hydrated = applyDefaults(raw);
+  return clone(hydrated);
 }
 
 export async function saveConfig(config: Config): Promise<void> {
@@ -160,4 +187,22 @@ export async function saveConfig(config: Config): Promise<void> {
       resolve();
     });
   });
+}
+
+function applyDefaults(raw?: Partial<Config>): Config {
+  const base = raw ?? {};
+  const labelFormats = base.labelFormats ?? SAMPLE_FORMATS;
+  const layouts = base.layouts ?? SAMPLE_LAYOUTS;
+  const dataSources = base.dataSources ?? SAMPLE_DATA_SOURCES;
+  const nextLabelFormatId = base.nextLabelFormatId ?? labelFormats.length + 1;
+  const nextLayoutId = base.nextLayoutId ?? layouts.length + 1;
+  const nextDataSourceId = base.nextDataSourceId ?? dataSources.length + 1;
+  return {
+    layouts,
+    labelFormats,
+    dataSources,
+    nextLayoutId,
+    nextLabelFormatId,
+    nextDataSourceId
+  };
 }

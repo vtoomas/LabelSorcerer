@@ -1,4 +1,4 @@
-import type { DataSource, DataSourceVariableMapping, LabelLayout } from "../domain/models";
+import type { DataSource, DataSourceVariableMapping, LabelFormat, LabelLayout } from "../domain/models";
 import type { MappingEvaluationResult } from "./mappingEvaluator";
 
 export interface StatusPayload {
@@ -26,22 +26,28 @@ export interface ResolvedVariable extends MappingEvaluationResult {
 export type MessageRequest =
   | { type: "getStatus" }
   | { type: "getLayouts" }
+  | { type: "getLabelFormats" }
   | { type: "getDataSources" }
   | { type: "getActiveTabContext" }
   | { type: "evaluateDataSource"; payload: { dataSourceId: number } }
   | { type: "testMappings"; payload: { mappings: DataSourceVariableMapping[] } }
   | { type: "saveLayout"; payload: LabelLayout }
   | { type: "deleteLayout"; payload: { id: number } }
+  | { type: "saveLabelFormat"; payload: LabelFormat }
+  | { type: "deleteLabelFormat"; payload: { id: number } }
   | { type: "saveDataSource"; payload: DataSource }
   | { type: "deleteDataSource"; payload: { id: number } };
 
 export type MessageResponse =
   | { type: "status"; payload: StatusPayload }
   | { type: "layouts"; payload: LabelLayout[] }
+  | { type: "labelFormats"; payload: LabelFormat[] }
   | { type: "dataSources"; payload: DataSource[] }
   | { type: "activeContext"; payload: ActiveTabContext }
   | { type: "layoutSaved"; payload: LabelLayout }
   | { type: "layoutDeleted"; payload: { id: number } }
+  | { type: "labelFormatSaved"; payload: LabelFormat }
+  | { type: "labelFormatDeleted"; payload: { id: number } }
   | { type: "dataSourceSaved"; payload: DataSource }
   | { type: "dataSourceDeleted"; payload: { id: number } }
   | {
