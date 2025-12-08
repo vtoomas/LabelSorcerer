@@ -1,4 +1,5 @@
 import type { DataSource, LabelFormat, LabelLayout } from "./models";
+import type { PostPrintWebhookConfig } from "../shared/webhook";
 
 const STORAGE_KEY = "labelsorcerer:config";
 
@@ -143,6 +144,7 @@ export interface Config {
   nextLayoutId: number;
   nextLabelFormatId: number;
   nextDataSourceId: number;
+  postPrintWebhook?: PostPrintWebhookConfig | null;
 }
 
 const DEFAULT_CONFIG: Config = {
@@ -151,7 +153,8 @@ const DEFAULT_CONFIG: Config = {
   dataSources: SAMPLE_DATA_SOURCES,
   nextLayoutId: SAMPLE_LAYOUTS.length + 1,
   nextLabelFormatId: SAMPLE_FORMATS.length + 1,
-  nextDataSourceId: SAMPLE_DATA_SOURCES.length + 1
+  nextDataSourceId: SAMPLE_DATA_SOURCES.length + 1,
+  postPrintWebhook: null
 };
 
 function clone<T>(value: T): T {
@@ -197,12 +200,14 @@ function applyDefaults(raw?: Partial<Config>): Config {
   const nextLabelFormatId = base.nextLabelFormatId ?? labelFormats.length + 1;
   const nextLayoutId = base.nextLayoutId ?? layouts.length + 1;
   const nextDataSourceId = base.nextDataSourceId ?? dataSources.length + 1;
+  const postPrintWebhook = base.postPrintWebhook ?? null;
   return {
     layouts,
     labelFormats,
     dataSources,
     nextLayoutId,
     nextLabelFormatId,
-    nextDataSourceId
+    nextDataSourceId,
+    postPrintWebhook
   };
 }

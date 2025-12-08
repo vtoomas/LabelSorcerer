@@ -95,7 +95,7 @@ function renderElementContent(element: LayoutElement, resolvedMap: Record<string
   return <span style={{ overflowWrap: "break-word" }}>{value || "-"}</span>;
 }
 
-function resolveElementDisplayValue(element: LayoutElement, resolvedMap: Record<string, string>): string {
+export function resolveElementDisplayValue(element: LayoutElement, resolvedMap: Record<string, string>): string {
   if (element.mode !== "dynamic") {
     return element.staticContent ?? element.name;
   }

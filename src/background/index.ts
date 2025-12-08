@@ -14,6 +14,7 @@ import {
 } from "../domain/dataSourceService";
 import { getLabelFormats, saveLabelFormat, deleteLabelFormat } from "../domain/labelFormatService";
 import { deleteLayout, getLayouts, saveLayout } from "../domain/layoutService";
+import { getPrintWebhookConfig, savePrintWebhookConfig } from "../domain/printWebhookService";
 
 const BUILD_VERSION = "0.1.0";
 let lastContentTabId: number | null = null;
@@ -186,6 +187,11 @@ async function handleMessage(message: MessageRequest): Promise<MessageResponse> 
     }
     case "getActiveTabContext":
       return { type: "activeContext", payload: await buildActiveContext() };
+    case "getPrintWebhookSettings":
+      return { type: "printWebhookSettings", payload: await getPrintWebhookConfig() };
+    case "savePrintWebhookSettings":
+      await savePrintWebhookConfig(message.payload);
+      return { type: "printWebhookSettings", payload: message.payload };
     default:
       return { type: "error", payload: { message: "Unknown message type." } };
   }
