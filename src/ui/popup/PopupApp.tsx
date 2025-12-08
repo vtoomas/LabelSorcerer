@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import QRCode from "react-qr-code";
+import { QRCode } from "react-qr-code";
 import type { LabelFormat, LabelLayout } from "../../domain/models";
 import { sendMessage, type ResolvedVariable } from "../../shared/messaging";
 import "./popup.css";
