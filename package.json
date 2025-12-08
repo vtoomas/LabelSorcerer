@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "react": "^19",
-    "react-dom": "^19"
+    "react-dom": "^19",
+    "react-qr-code": "^2.0.18"
   },
   "devDependencies": {
     "@types/bun": "latest",
