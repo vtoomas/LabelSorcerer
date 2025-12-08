@@ -1162,7 +1162,20 @@ function LayoutEditorView({ formats, initialLayout, onSave, onCancel, onDelete }
               </label>
             </div>
           </div>
-          <CanvasPreview layout={draft} format={activeFormat} selectedElementId={selectedElementId} onSelect={setSelectedElementId} />
+          <CanvasPreview
+            layout={draft}
+            format={activeFormat}
+            selectedElementId={selectedElementId}
+            snapEnabled={snapEnabled}
+            onSelect={setSelectedElementId}
+            onMove={(id, nextX, nextY) =>
+              handleUpdateElement(id, (element) => ({
+                ...element,
+                positionX: nextX,
+                positionY: nextY,
+              }))
+            }
+          />
         </div>
 
         <div className="layout-editor-column properties-panel">
@@ -1523,15 +1536,40 @@ interface CanvasPreviewProps {
   format?: LabelFormat;
   selectedElementId: number | null;
   onSelect: (id: number) => void;
+  snapEnabled: boolean;
+  onMove: (id: number, nextX: number, nextY: number) => void;
 }
 
-function CanvasPreview({ layout, format, selectedElementId, onSelect }: CanvasPreviewProps): JSX.Element {
+function CanvasPreview({ layout, format, selectedElementId, onSelect, snapEnabled, onMove }: CanvasPreviewProps): JSX.Element {
   const canvasWidth = format?.widthPx ?? 600;
   const canvasHeight = format?.heightPx ?? 320;
   const maxCanvasWidth = 720;
   const scale = Math.min(1, maxCanvasWidth / canvasWidth);
   const stageWidth = canvasWidth * scale;
   const stageHeight = canvasHeight * scale;
+  const [drag, setDrag] = useState<{ id: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
+
+  useEffect(() => {
+    const handleMove = (event: PointerEvent) => {
+      if (!drag) return;
+      event.preventDefault();
+      const dx = (event.clientX - drag.startX) / scale;
+      const dy = (event.clientY - drag.startY) / scale;
+      const nextX = snapEnabled ? applySnap(drag.originX + dx) : drag.originX + dx;
+      const nextY = snapEnabled ? applySnap(drag.originY + dy) : drag.originY + dy;
+      onMove(drag.id, Math.max(0, nextX), Math.max(0, nextY));
+    };
+    const handleUp = () => setDrag(null);
+
+    if (drag) {
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", handleUp, { once: true });
+    }
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+  }, [drag, onMove, scale, snapEnabled]);
 
   return (
     <div
@@ -1549,22 +1587,32 @@ function CanvasPreview({ layout, format, selectedElementId, onSelect }: CanvasPr
             fontSize: element.fontSize ? element.fontSize * scale : undefined,
           };
           return (
-            <button
-              key={element.id}
-              type="button"
-              className={`layout-canvas-element ${selectedElementId === element.id ? "is-selected" : ""}`}
-              style={style}
-              onClick={() => onSelect(element.id)}
-            >
-              <span className="element-label">{element.name}</span>
-              <span className="element-meta">
-                {element.type === "text" ? element.dynamicBinding?.variableKey || "static" : element.type}
-              </span>
-            </button>
-          );
-        })}
+              <button
+                key={element.id}
+                type="button"
+                className={`layout-canvas-element ${selectedElementId === element.id ? "is-selected" : ""}`}
+                style={style}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  onSelect(element.id);
+                  setDrag({
+                    id: element.id,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    originX: element.positionX,
+                    originY: element.positionY,
+                  });
+                }}
+              >
+                <span className="element-label">{element.name}</span>
+                <span className="element-meta">
+                  {element.type === "text" ? element.dynamicBinding?.variableKey || "static" : element.type}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
-    </div>
   );
 }
 
