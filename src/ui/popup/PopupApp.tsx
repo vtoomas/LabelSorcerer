@@ -113,7 +113,30 @@ export function PopupApp(): JSX.Element {
   };
 
   const printLabels = () => {
-    window.print();
+    if (!activeLayout) {
+      setError("No layout selected to print.");
+      return;
+    }
+    const format = activeFormat;
+    const html = buildPrintableHtml(activeLayout, format, resolvedMap);
+    const width = format?.widthPx ?? 600;
+    const height = format?.heightPx ?? 320;
+    const printWindow = window.open("", "_blank", `width=${width + 60},height=${height + 60}`);
+    if (!printWindow) {
+      setError("Unable to open print window.");
+      return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    const closeLater = () => {
+      printWindow.close();
+    };
+    printWindow.addEventListener("afterprint", closeLater, { once: true });
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+    };
   };
 
   return (
@@ -247,4 +270,71 @@ function QrPreview({ value, size }: QrPreviewProps): JSX.Element {
       <QRCode value={safeValue} size={dimension} style={{ width: "100%", height: "100%" }} />
     </div>
   );
+}
+
+function buildPrintableHtml(layout: LabelLayout, format: LabelFormat | null, resolvedMap: Record<string, string>): string {
+  const width = format?.widthPx ?? 600;
+  const height = format?.heightPx ?? 320;
+  const padding = 12;
+  const qrUrl = (value: string, size: number) =>
+    `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value || " ")}`;
+
+  const elements = layout.elements
+    .map((element) => {
+      const left = element.positionX;
+      const top = element.positionY;
+      const w = element.width;
+      const h = element.height;
+      if (element.type === "qrcode") {
+        const value =
+          element.mode === "dynamic"
+            ? resolvedMap[element.dynamicBinding?.variableKey ?? ""] ?? ""
+            : element.staticContent ?? element.name;
+        const size = Math.floor(Math.min(w, h));
+        return `<div style="position:absolute;left:${left}px;top:${top}px;width:${w}px;height:${h}px;display:flex;align-items:center;justify-content:center;">
+          <img src="${qrUrl(value, size)}" alt="QR" style="width:${size}px;height:${size}px;"/>
+        </div>`;
+      }
+      const content =
+        element.mode === "dynamic"
+          ? resolvedMap[element.dynamicBinding?.variableKey ?? ""] ?? ""
+          : element.staticContent ?? element.name;
+      const fontSize = element.fontSize ? `font-size:${element.fontSize}px;` : "";
+      return `<div style="position:absolute;left:${left}px;top:${top}px;width:${w}px;height:${h}px;display:flex;align-items:center;justify-content:flex-start;border:1px solid #d8dbe2;padding:2px;${fontSize}">
+        <span>${content || "—"}</span>
+      </div>`;
+    })
+    .join("");
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Print preview</title>
+  <style>
+    @media print {
+      body { margin:0; }
+    }
+    body {
+      margin: 0;
+      padding: ${padding}px;
+      background: #f6f8fa;
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    .canvas {
+      position: relative;
+      width: ${width}px;
+      height: ${height}px;
+      border: 1px solid #d8dbe2;
+      background: #ffffff;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    ${elements}
+  </div>
+</body>
+</html>`;
 }
