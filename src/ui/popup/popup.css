@@ -147,14 +147,7 @@ body {
   background: rgba(255, 255, 255, 0.9);
   padding: 0.25rem 0.35rem;
   display: flex;
-  flex-direction: column;
-  gap: 0.12rem;
-  align-items: flex-start;
-}
-
-.preview-element-label {
-  font-size: 0.7rem;
-  color: #6b6b6f;
+  justify-content: center;
 }
 
 .preview-element-value {

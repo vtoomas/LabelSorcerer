@@ -214,7 +214,6 @@ function PreviewCanvas({ layout, format, resolvedMap }: PreviewCanvasProps): JSX
                 : element.staticContent ?? element.name;
             return (
               <div key={element.id} className="preview-element" style={style}>
-                <div className="preview-element-label">{element.name}</div>
                 <QrPreview value={qrValue} size={Math.min(style.width as number, style.height as number)} />
               </div>
             );
@@ -225,7 +224,6 @@ function PreviewCanvas({ layout, format, resolvedMap }: PreviewCanvasProps): JSX
                 : element.staticContent ?? element.name;
             return (
               <div key={element.id} className="preview-element" style={style}>
-                <div className="preview-element-label">{element.name}</div>
                 <div className="preview-element-value">{content || "—"}</div>
               </div>
             );
