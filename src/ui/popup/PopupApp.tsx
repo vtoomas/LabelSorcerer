@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { QRCode } from "react-qr-code";
+import { renderToStaticMarkup } from "react-dom/server";
 import type { LabelFormat, LabelLayout } from "../../domain/models";
 import { sendMessage, type ResolvedVariable } from "../../shared/messaging";
+import { LabelCanvasDisplay } from "../shared/LabelCanvasDisplay";
 import "./popup.css";
 
 export function PopupApp(): JSX.Element {
@@ -119,8 +120,8 @@ export function PopupApp(): JSX.Element {
     }
     const format = activeFormat;
     const html = buildPrintableHtml(activeLayout, format, resolvedMap);
-    const width = format?.widthPx ?? 600;
-    const height = format?.heightPx ?? 320;
+    const height = 600;
+    const width = 800;
     const printWindow = window.open("", "_blank", `width=${width + 60},height=${height + 60}`);
     if (!printWindow) {
       setError("Unable to open print window.");
@@ -130,7 +131,7 @@ export function PopupApp(): JSX.Element {
     printWindow.document.close();
     printWindow.focus();
     const closeLater = () => {
-      printWindow.close();
+      // printWindow.close();
     };
     printWindow.addEventListener("afterprint", closeLater, { once: true });
     printWindow.onload = () => {
@@ -221,119 +222,48 @@ function PreviewCanvas({ layout, format, resolvedMap }: PreviewCanvasProps): JSX
 
   return (
     <div className="preview-canvas-frame" style={{ width: scaledWidth }}>
-      <div className="preview-canvas" style={{ width: scaledWidth, height: scaledHeight }}>
-        {layout.elements.map((element) => {
-          const style: React.CSSProperties = {
-            left: element.positionX * scale,
-            top: element.positionY * scale,
-            width: element.width * scale,
-            height: element.height * scale,
-            fontSize: element.fontSize ? element.fontSize * scale : undefined,
-          };
-          if (element.type === "qrcode") {
-            const qrValue =
-              element.mode === "dynamic"
-                ? resolvedMap[element.dynamicBinding?.variableKey ?? ""] ?? ""
-                : element.staticContent ?? element.name;
-            return (
-              <div key={element.id} className="preview-element" style={style}>
-                <QrPreview value={qrValue} size={Math.min(style.width as number, style.height as number)} />
-              </div>
-            );
-          } else {
-            const content =
-              element.mode === "dynamic"
-                ? resolvedMap[element.dynamicBinding?.variableKey ?? ""] ?? ""
-                : element.staticContent ?? element.name;
-            return (
-              <div key={element.id} className="preview-element" style={style}>
-                <div className="preview-element-value">{content || "—"}</div>
-              </div>
-            );
-          }
-        })}
-      </div>
-    </div>
-  );
-}
-
-interface QrPreviewProps {
-  value: string;
-  size: number;
-}
-
-function QrPreview({ value, size }: QrPreviewProps): JSX.Element {
-  const safeValue = value || " ";
-  const dimension = Math.max(48, Math.floor(size));
-  return (
-    <div className="preview-qr-wrapper" style={{ width: dimension, height: dimension }}>
-      <QRCode value={safeValue} size={dimension} style={{ width: "100%", height: "100%" }} />
+      <LabelCanvasDisplay
+        layout={layout}
+        format={format}
+        resolvedMap={resolvedMap}
+        scale={scale}
+      />
     </div>
   );
 }
 
 function buildPrintableHtml(layout: LabelLayout, format: LabelFormat | null, resolvedMap: Record<string, string>): string {
+  const canvasMarkup = renderToStaticMarkup(
+    <LabelCanvasDisplay layout={layout} format={format} resolvedMap={resolvedMap} scale={1} />,
+  );
   const width = format?.widthPx ?? 600;
   const height = format?.heightPx ?? 320;
-  const padding = 12;
-  const qrUrl = (value: string, size: number) =>
-    `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value || " ")}`;
-
-  const elements = layout.elements
-    .map((element) => {
-      const left = element.positionX;
-      const top = element.positionY;
-      const w = element.width;
-      const h = element.height;
-      if (element.type === "qrcode") {
-        const value =
-          element.mode === "dynamic"
-            ? resolvedMap[element.dynamicBinding?.variableKey ?? ""] ?? ""
-            : element.staticContent ?? element.name;
-        const size = Math.floor(Math.min(w, h));
-        return `<div style="position:absolute;left:${left}px;top:${top}px;width:${w}px;height:${h}px;display:flex;align-items:center;justify-content:center;">
-          <img src="${qrUrl(value, size)}" alt="QR" style="width:${size}px;height:${size}px;"/>
-        </div>`;
-      }
-      const content =
-        element.mode === "dynamic"
-          ? resolvedMap[element.dynamicBinding?.variableKey ?? ""] ?? ""
-          : element.staticContent ?? element.name;
-      const fontSize = element.fontSize ? `font-size:${element.fontSize}px;` : "";
-      return `<div style="position:absolute;left:${left}px;top:${top}px;width:${w}px;height:${h}px;display:flex;align-items:center;justify-content:flex-start;border:1px solid #d8dbe2;padding:2px;${fontSize}">
-        <span>${content || "—"}</span>
-      </div>`;
-    })
-    .join("");
-
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
   <title>Print preview</title>
   <style>
-    @media print {
-      body { margin:0; }
-    }
     body {
       margin: 0;
-      padding: ${padding}px;
+      padding: 0;
       background: #f6f8fa;
       font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
     }
-    .canvas {
-      position: relative;
+    .canvas-wrapper {
       width: ${width}px;
       height: ${height}px;
-      border: 1px solid #d8dbe2;
-      background: #ffffff;
-      overflow: hidden;
+    }
+    @media print {
+      body {
+        background: #ffffff;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="canvas">
-    ${elements}
+  <div class="canvas-wrapper">
+    ${canvasMarkup}
   </div>
 </body>
 </html>`;
