@@ -260,8 +260,8 @@ function buildPrintableHtml(
   format: LabelFormat | null,
   resolvedMap: Record<string, string>,
 ): string {
-  const width = format?.widthPx ?? 600;
-  const height = format?.heightPx ?? 320;
+  const width = 600;
+  const height = 800;
   const canvasMarkup = renderToStaticMarkup(
     <div className="label-print-root" style={{ width: `${width}px`, height: `${height}px` }}>
       <LabelCanvasDisplay layout={layout} format={format} resolvedMap={resolvedMap} scale={1} />
@@ -292,11 +292,6 @@ function buildPrintPageStyles(width: number, height: number): string {
       min-height: 100vh;
       font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #ffffff;
-    }
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
     .label-print-root {
       display: inline-flex;
