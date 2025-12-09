@@ -22,54 +22,71 @@ export function LabelCanvasDisplay({
 }: LabelCanvasDisplayProps): JSX.Element {
   const canvasWidth = format?.widthPx ?? 600;
   const canvasHeight = format?.heightPx ?? 320;
-  const marginLeft = format?.marginLeftPx ?? 0;
-  const marginTop = format?.marginTopPx ?? 0;
+  const marginLeft = Math.max(0, format?.marginLeftPx ?? 0);
+  const marginRight = Math.max(0, format?.marginRightPx ?? 0);
+  const marginTop = Math.max(0, format?.marginTopPx ?? 0);
+  const marginBottom = Math.max(0, format?.marginBottomPx ?? 0);
+  const contentWidth = Math.max(0, canvasWidth - marginLeft - marginRight);
+  const contentHeight = Math.max(0, canvasHeight - marginTop - marginBottom);
   const scaledWidth = canvasWidth * scale;
   const scaledHeight = canvasHeight * scale;
+  const scaledMarginLeft = marginLeft * scale;
+  const scaledMarginTop = marginTop * scale;
+  const scaledContentWidth = contentWidth * scale;
+  const scaledContentHeight = contentHeight * scale;
 
   const style: CSSProperties = {
     width: `${scaledWidth}px`,
     height: `${scaledHeight}px`,
     position: "relative",
     background: "#ffffff",
+    borderRadius: 0,
     boxSizing: "border-box",
     ...containerStyle,
   };
 
+  const contentStyle: CSSProperties = {
+    position: "absolute",
+    left: `${scaledMarginLeft}px`,
+    top: `${scaledMarginTop}px`,
+    width: `${Math.max(scaledContentWidth, 0)}px`,
+    height: `${Math.max(scaledContentHeight, 0)}px`,
+    overflow: "hidden",
+  };
+
   return (
     <div className={className} style={style}>
-      {layout.elements.map((element) => {
-        const elementStyle = buildElementStyle(element, scale, marginLeft, marginTop);
-        return (
-          <div key={element.id} style={elementStyle}>
+      <div style={contentStyle}>
+        {layout.elements.map((element) => (
+          <div key={element.id} style={buildElementStyle(element, scale)}>
             {renderElementContent(element, resolvedMap, scale)}
           </div>
-        );
-      })}
+        ))}
+      </div>
     </div>
   );
 }
 
-function buildElementStyle(
-  element: LayoutElement,
-  scale: number,
-  marginLeft: number,
-  marginTop: number,
-): CSSProperties {
-  const scaledWidth = element.width * scale;
-  const scaledHeight = element.height * scale;
+function buildElementStyle(element: LayoutElement, scale: number): CSSProperties {
+  const scaledWidth = Math.max(0, element.width * scale);
+  const scaledHeight = Math.max(0, element.height * scale);
+  const justifyContent =
+    element.type === "qrcode"
+      ? "center"
+      : element.textAlignment === "center"
+      ? "center"
+      : "flex-start";
   return {
     position: "absolute",
-    left: (element.positionX + marginLeft) * scale,
-    top: (element.positionY + marginTop) * scale,
+    left: element.positionX * scale,
+    top: element.positionY * scale,
     width: scaledWidth,
     height: scaledHeight,
     display: "flex",
     alignItems: "center",
-    justifyContent: element.type === "qrcode" ? "center" : "flex-start",
+    justifyContent,
     padding: 0,
     fontWeight: 600,
-    fontSize: element.fontSize ? element.fontSize * scale : undefined,
     color: "#1c1c1e",
     lineHeight: 1.2,
     boxSizing: "border-box",
@@ -93,5 +110,37 @@ function renderElementContent(element: LayoutElement, resolvedMap: Record<string
       />
     );
   }
-  return <span style={{ overflowWrap: "break-word" }}>{value || "-"}</span>;
+  const baseFontSize = element.fontSize ? element.fontSize * scale : undefined;
+  const fittedFontSize = getFittedFontSize(element, value, scale);
+  const finalFontSize = fittedFontSize ?? baseFontSize;
+  const textStyle: CSSProperties = {
+    overflowWrap: "break-word",
+    textAlign: element.textAlignment ?? "left",
+    width: "100%",
+    fontSize: finalFontSize,
+  };
+  return <span style={textStyle}>{value || "-"}</span>;
+}
+
+let measurementContext: CanvasRenderingContext2D | null = null;
+
+function getMeasurementContext(): CanvasRenderingContext2D | null {
+  if (typeof document === "undefined") return null;
+  if (measurementContext) return measurementContext;
+  const canvas = document.createElement("canvas");
+  measurementContext = canvas.getContext("2d");
+  return measurementContext;
+}
+
+function getFittedFontSize(element: LayoutElement, value: string, scale: number): number | undefined {
+  if (!element.shrinkToFit || !element.fontSize) return undefined;
+  const ctx = getMeasurementContext();
+  if (!ctx) return undefined;
+  const baseSize = element.fontSize * scale;
+  ctx.font = `${baseSize}px Inter, system-ui`;
+  const textWidth = ctx.measureText(value || " ").width;
+  const availableWidth = Math.max(1, element.width * scale);
+  if (textWidth <= availableWidth) return baseSize;
+  const ratio = availableWidth / textWidth;
+  return Math.max(baseSize * ratio, 6);
 }

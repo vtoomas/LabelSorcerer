@@ -39,6 +39,8 @@ export interface LayoutElement {
 
   rotation: number | null;
   fontSize: number | null;
+  textAlignment?: "left" | "center";
+  shrinkToFit?: boolean;
 
   mode: LayoutElementMode;
 

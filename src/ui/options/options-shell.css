@@ -387,47 +387,63 @@
 .layout-canvas-surface {
   margin: 0 auto;
   position: relative;
-  border-radius: 0.2rem;
+  border-radius: 0;
   background: repeating-linear-gradient(45deg, #fafafa, #fafafa 12px, #f1f1f1 12px, #f1f1f1 24px);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);
   border: 1px solid #e4e6ee;
 }
 
 .layout-canvas-inner {
   position: relative;
   overflow: hidden;
-  border-radius: 0.2rem;
+  border-radius: 0;
 }
 
 .layout-canvas-element {
   position: absolute;
-  border-radius: 0.55rem;
-  border: 1px solid rgba(91, 75, 205, 0.35);
-  background: rgba(91, 75, 205, 0.08);
-  color: #1c1c1e;
+  border-radius: 0;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.85);
+  color: inherit;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.18rem;
   padding: 0.4rem 0.5rem;
-  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+  gap: 0.18rem;
+  box-shadow: none;
 }
 
 .layout-canvas-element .element-label {
   font-size: 0.9rem;
-}
-
-.layout-canvas-element .element-meta {
-  font-size: 0.75rem;
-  color: #4b5563;
+  word-break: break-word;
+  line-height: 1.1;
 }
 
 .layout-canvas-element.is-selected {
-  border-color: #5b4bcd;
-  background: rgba(91, 75, 205, 0.16);
-  box-shadow: 0 0 0 2px rgba(91, 75, 205, 0.2);
+  outline: 2px solid #8b7ffc;
+  outline-offset: 0;
+}
+
+.layout-canvas-element--text {
+  border-color: #0f172a;
+  color: #0f172a;
+  background: transparent;
+}
+
+.layout-canvas-element--qrcode {
+  border-color: #7c3aed;
+  color: #1c1c1e;
+}
+
+.layout-canvas-element--image {
+  border-color: #fcd34d;
+  color: #1c1c1e;
+}
+
+.layout-canvas-element--shape {
+  border-color: #ef4444;
+  color: #b91c1c;
 }
 
 .properties-panel {

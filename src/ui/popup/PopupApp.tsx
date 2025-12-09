@@ -255,3 +255,57 @@ function PreviewCanvas({ layout, format, resolvedMap }: PreviewCanvasProps): JSX
   );
 }
 
+function buildPrintableHtml(
+  layout: LabelLayout,
+  format: LabelFormat | null,
+  resolvedMap: Record<string, string>,
+): string {
+  const width = format?.widthPx ?? 600;
+  const height = format?.heightPx ?? 320;
+  const canvasMarkup = renderToStaticMarkup(
+    <div className="label-print-root" style={{ width: `${width}px`, height: `${height}px` }}>
+      <LabelCanvasDisplay layout={layout} format={format} resolvedMap={resolvedMap} scale={1} />
+    </div>,
+  );
+
+  const styles = buildPrintPageStyles(width, height);
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <title>LabelSorcerer Print</title>
+        <style>${styles}</style>
+      </head>
+      <body>${canvasMarkup}</body>
+    </html>
+  `;
+}
+
+function buildPrintPageStyles(width: number, height: number): string {
+  return `
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #ffffff;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .label-print-root {
+      display: inline-flex;
+      outline: none;
+    }
+    @page {
+      size: ${width}px ${height}px;
+      margin: 0;
+    }
+  `;
+}
+

@@ -1581,18 +1581,38 @@ function CanvasPreview({ layout, format, selectedElementId, onSelect, snapEnable
     >
       <div className="layout-canvas-inner" style={{ width: stageWidth, height: stageHeight }}>
         {layout.elements.map((element) => {
+          const justifyContent =
+            element.type === "text"
+              ? element.textAlignment === "center"
+                ? "center"
+                : "flex-start"
+              : "center";
           const style: CSSProperties = {
             left: element.positionX * scale,
             top: element.positionY * scale,
             width: element.width * scale,
             height: element.height * scale,
-            fontSize: element.fontSize ? element.fontSize * scale : undefined,
+            justifyContent,
           };
+          const isTextElement = element.type === "text";
+          const previewText = isTextElement
+            ? element.mode === "dynamic"
+              ? element.dynamicBinding?.variableKey ?? element.name
+              : element.staticContent ?? element.name
+            : element.name;
+          const textStyle: CSSProperties | undefined = isTextElement
+            ? {
+                fontSize: (element.fontSize ?? 14) * scale,
+                width: "100%",
+                textAlign: element.textAlignment ?? "left",
+                lineHeight: 1.2,
+              }
+            : undefined;
           return (
               <button
                 key={element.id}
                 type="button"
-                className={`layout-canvas-element ${selectedElementId === element.id ? "is-selected" : ""}`}
+                className={`layout-canvas-element layout-canvas-element--${element.type} ${selectedElementId === element.id ? "is-selected" : ""}`}
                 style={style}
                 onPointerDown={(event) => {
                   event.preventDefault();
@@ -1606,9 +1626,8 @@ function CanvasPreview({ layout, format, selectedElementId, onSelect, snapEnable
                   });
                 }}
               >
-                <span className="element-label">{element.name}</span>
-                <span className="element-meta">
-                  {element.type === "text" ? element.dynamicBinding?.variableKey || "static" : element.type}
+                <span className="element-label" style={textStyle}>
+                  {previewText}
                 </span>
               </button>
             );
@@ -1751,17 +1770,42 @@ function PropertiesPanel({ element, variables, snapEnabled, onUpdate, onRemove }
         </label>
       </div>
 
-      {isText && (
-        <label className="editor-field">
-          <span>Font size</span>
-          <input
-            className="editor-input"
-            type="number"
-            value={element.fontSize ?? 14}
-            onChange={(event) => onUpdate((prev) => ({ ...prev, fontSize: Number(event.target.value) }))}
-          />
-        </label>
-      )}
+        {isText && (
+          <>
+            <label className="editor-field">
+              <span>Font size</span>
+              <input
+                className="editor-input"
+                type="number"
+                value={element.fontSize ?? 14}
+                onChange={(event) => onUpdate((prev) => ({ ...prev, fontSize: Number(event.target.value) }))}
+              />
+            </label>
+            <label className="editor-field">
+              <span>Text alignment</span>
+              <select
+                className="editor-input"
+                value={element.textAlignment ?? "left"}
+                onChange={(event) =>
+                  onUpdate((prev) => ({ ...prev, textAlignment: event.target.value as "left" | "center" }))
+                }
+              >
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+              </select>
+            </label>
+            <label className="editor-field checkbox-field">
+              <input
+                type="checkbox"
+                checked={Boolean(element.shrinkToFit)}
+                onChange={(event) =>
+                  onUpdate((prev) => ({ ...prev, shrinkToFit: event.target.checked }))
+                }
+              />
+              <span>Shrink text to fit</span>
+            </label>
+          </>
+        )}
 
       {isDynamic && (
         <>
