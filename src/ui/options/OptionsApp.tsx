@@ -1580,19 +1580,22 @@ function CanvasPreview({ layout, format, selectedElementId, onSelect, snapEnable
       aria-label="Label canvas"
     >
       <div className="layout-canvas-inner" style={{ width: stageWidth, height: stageHeight }}>
-        {layout.elements.map((element) => {
-          const justifyContent =
-            element.type === "text"
-              ? element.textAlignment === "center"
-                ? "center"
-                : "flex-start"
-              : "center";
+          {layout.elements.map((element) => {
+            const justifyContent =
+              element.type === "text"
+                ? element.textAlignment === "center"
+                  ? "center"
+                  : "flex-start"
+                : "center";
+            const rotation = element.rotation ?? 0;
           const style: CSSProperties = {
             left: element.positionX * scale,
             top: element.positionY * scale,
             width: element.width * scale,
             height: element.height * scale,
             justifyContent,
+            transform: `rotate(${rotation}deg)`,
+            transformOrigin: "0 0",
           };
           const isTextElement = element.type === "text";
           const previewText = isTextElement
@@ -1750,25 +1753,34 @@ function PropertiesPanel({ element, variables, snapEnabled, onUpdate, onRemove }
             onChange={(event) => handleNumberChange("positionY", Number(event.target.value))}
           />
         </label>
-        <label className="editor-field">
-          <span>Width</span>
-          <input
-            className="editor-input"
-            type="number"
-            value={element.width}
-            onChange={(event) => handleNumberChange("width", Number(event.target.value))}
-          />
-        </label>
-        <label className="editor-field">
-          <span>Height</span>
-          <input
-            className="editor-input"
-            type="number"
-            value={element.height}
-            onChange={(event) => handleNumberChange("height", Number(event.target.value))}
-          />
-        </label>
-      </div>
+          <label className="editor-field">
+            <span>Width</span>
+            <input
+              className="editor-input"
+              type="number"
+              value={element.width}
+              onChange={(event) => handleNumberChange("width", Number(event.target.value))}
+            />
+          </label>
+          <label className="editor-field">
+            <span>Height</span>
+            <input
+              className="editor-input"
+              type="number"
+              value={element.height}
+              onChange={(event) => handleNumberChange("height", Number(event.target.value))}
+            />
+          </label>
+          <label className="editor-field">
+            <span>Rotation (deg)</span>
+            <input
+              className="editor-input"
+              type="number"
+              value={element.rotation ?? 0}
+              onChange={(event) => onUpdate((prev) => ({ ...prev, rotation: Number(event.target.value) }))}
+            />
+          </label>
+        </div>
 
         {isText && (
           <>

@@ -76,6 +76,7 @@ function buildElementStyle(element: LayoutElement, scale: number): CSSProperties
       : element.textAlignment === "center"
       ? "center"
       : "flex-start";
+  const rotation = element.rotation ?? 0;
   return {
     position: "absolute",
     left: element.positionX * scale,
@@ -85,6 +86,8 @@ function buildElementStyle(element: LayoutElement, scale: number): CSSProperties
     display: "flex",
     alignItems: "center",
     justifyContent,
+    transform: `rotate(${rotation}deg)`,
+    transformOrigin: "0 0",
     padding: 0,
     fontWeight: 600,
     color: "#1c1c1e",
