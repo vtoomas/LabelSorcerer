@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { LabelFormat, LabelLayout } from "../../domain/models";
 import { sendMessage, type ResolvedVariable } from "../../shared/messaging";
 import { LabelCanvasDisplay } from "../shared/LabelCanvasDisplay";
+import type { PostPrintWebhookConfig } from "../../shared/webhook";
+import { buildPrintWebhookPayload, createSamplePrintWebhookPayload, sendPrintWebhook } from "../../shared/webhook";
 import "./popup.css";
 
 export function PopupApp(): JSX.Element {
@@ -15,6 +17,7 @@ export function PopupApp(): JSX.Element {
   const [dataSourceId, setDataSourceId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [printWebhookConfig, setPrintWebhookConfig] = useState<PostPrintWebhookConfig | null>(null);
 
   const statusText = useMemo(() => {
     if (loading) return "Refreshing…";
@@ -40,6 +43,26 @@ export function PopupApp(): JSX.Element {
 
   useEffect(() => {
     void refreshContextAndEvaluate();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadWebhookSettings = async () => {
+      try {
+        const response = await sendMessage({ type: "getPrintWebhookSettings" });
+        if (cancelled) return;
+        if (response.type === "printWebhookSettings") {
+          setPrintWebhookConfig(response.payload);
+        }
+      } catch (err) {
+        console.error("Failed to load print webhook settings", err);
+      }
+    };
+
+    void loadWebhookSettings();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const openOptions = (): void => {
@@ -120,8 +143,8 @@ export function PopupApp(): JSX.Element {
     }
     const format = activeFormat;
     const html = buildPrintableHtml(activeLayout, format, resolvedMap);
-    const height = 600;
-    const width = 800;
+    const width = format?.widthPx ?? 600;
+    const height = format?.heightPx ?? 320;
     const printWindow = window.open("", "_blank", `width=${width + 60},height=${height + 60}`);
     if (!printWindow) {
       setError("Unable to open print window.");
@@ -130,10 +153,10 @@ export function PopupApp(): JSX.Element {
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();
-    const closeLater = () => {
-      // printWindow.close();
-    };
-    printWindow.addEventListener("afterprint", closeLater, { once: true });
+    const payload = buildPrintWebhookPayload(activeLayout, format, resolvedMap, dataSourceId ?? null, dataSourceName);
+    printWindow.addEventListener("afterprint", () => {
+      void sendPrintWebhook(payload, printWebhookConfig);
+    }, { once: true });
     printWindow.onload = () => {
       printWindow.focus();
       printWindow.print();
@@ -232,39 +255,3 @@ function PreviewCanvas({ layout, format, resolvedMap }: PreviewCanvasProps): JSX
   );
 }
 
-function buildPrintableHtml(layout: LabelLayout, format: LabelFormat | null, resolvedMap: Record<string, string>): string {
-  const canvasMarkup = renderToStaticMarkup(
-    <LabelCanvasDisplay layout={layout} format={format} resolvedMap={resolvedMap} scale={1} />,
-  );
-  const width = format?.widthPx ?? 600;
-  const height = format?.heightPx ?? 320;
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Print preview</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: #f6f8fa;
-      font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-    }
-    .canvas-wrapper {
-      width: ${width}px;
-      height: ${height}px;
-    }
-    @media print {
-      body {
-        background: #ffffff;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="canvas-wrapper">
-    ${canvasMarkup}
-  </div>
-</body>
-</html>`;
-}

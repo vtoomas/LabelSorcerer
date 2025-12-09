@@ -2,6 +2,7 @@ import type { CSSProperties, FormEvent, JSX } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { DataSource, LabelFormat, LabelLayout, LayoutElement, LayoutVariable } from "../../domain/models";
 import { sendMessage, type MessageResponse, type ResolvedVariable } from "../../shared/messaging";
+import { createSamplePrintWebhookPayload, sendPrintWebhook, type PostPrintWebhookConfig, type PrintWebhookMethod } from "../../shared/webhook";
 import "./options-shell.css";
 
 type OptionsSection = "layouts" | "dataSources" | "formats" | "importExport" | "settings";
@@ -249,6 +250,7 @@ export function OptionsApp(): JSX.Element {
         {section === "dataSources" && <DataSourcesWorkspace fallbackLayouts={MOCK_LAYOUTS} />}
         {section === "formats" && <LabelFormatsWorkspace formats={formats} onChange={setFormats} />}
         {section === "importExport" && <ImportExportWorkspace />}
+        {section === "settings" && <SettingsWorkspace />}
       </main>
     </div>
   );
@@ -2265,6 +2267,216 @@ function ImportExportWorkspace(): JSX.Element {
             <p className="layout-editor-helper">Import will merge into existing items; duplicates may be overwritten by matching IDs.</p>
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function SettingsWorkspace(): JSX.Element {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [url, setUrl] = useState("");
+  const [method, setMethod] = useState<PrintWebhookMethod>("GET");
+  const [body, setBody] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadSettings = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await sendMessage({ type: "getPrintWebhookSettings" });
+        if (cancelled) return;
+        if (response.type === "printWebhookSettings") {
+          const payload = response.payload;
+          setUrl(payload?.url ?? "");
+          setMethod(payload?.method ?? "GET");
+          setBody(payload?.body ?? "");
+        } else if (response.type === "error") {
+          setError(response.payload.message);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+    void loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const saveSettings = async (payload: PostPrintWebhookConfig | null, successMessage: string) => {
+    setSaving(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const response = await sendMessage({ type: "savePrintWebhookSettings", payload });
+      if (response.type === "printWebhookSettings") {
+        const saved = response.payload;
+        setUrl(saved?.url ?? "");
+        setMethod(saved?.method ?? "GET");
+        setBody(saved?.body ?? "");
+        setStatus(successMessage);
+      } else if (response.type === "error") {
+        setError(response.payload.message);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedUrl = url.trim();
+    const payload: PostPrintWebhookConfig | null = trimmedUrl
+      ? { url: trimmedUrl, method, body: method === "POST" ? body : undefined }
+      : null;
+    void saveSettings(payload, trimmedUrl ? "Webhook settings saved." : "Webhook disabled.");
+  };
+
+  const handleClear = () => {
+    setUrl("");
+    setMethod("GET");
+    setBody("");
+    void saveSettings(null, "Webhook disabled.");
+  };
+
+  const handleTestWebhook = async () => {
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) {
+      setError("Provide a webhook URL before testing.");
+      return;
+    }
+    setError(null);
+    setStatus("Sending test webhook…");
+    setTesting(true);
+    const payload = createSamplePrintWebhookPayload();
+    const testConfig: PostPrintWebhookConfig = {
+      url: trimmedUrl,
+      method,
+      body: method === "POST" ? body : undefined,
+    };
+    try {
+      const response = await sendPrintWebhook(payload, testConfig);
+      console.log("Webhook test response", response);
+      if (response) {
+        let text = "";
+        try {
+          text = await response.text();
+          console.log("Webhook test response body", text);
+        } catch (inner) {
+          console.warn("Unable to read webhook test response body", inner);
+        }
+        const bodySnippet = text ? ` · body: ${text.substring(0, 120)}` : "";
+        setStatus(`Test response: ${response.status} ${response.statusText}${bodySnippet}`);
+      } else {
+        setStatus("Test webhook sent (no response).");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <section className="workspace">
+      <header className="workspace-header">
+        <div>
+          <p className="eyebrow">Settings</p>
+          <h1>Post-print webhook</h1>
+          <p className="workspace-subtitle">
+            Send the rendered elements to an external service after every print job.
+          </p>
+        </div>
+      </header>
+      <div className="workspace-card">
+        {error && <p className="workspace-error">{error}</p>}
+        {status && <p className="workspace-status">{status}</p>}
+        {loading ? (
+          <p className="workspace-status">Loading webhook settings…</p>
+        ) : (
+          <form className="settings-form" onSubmit={handleSubmit}>
+            <label className="settings-field">
+              <span>Webhook URL</span>
+              <input
+                className="editor-input"
+                type="url"
+                placeholder="https://example.com/webhook"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                disabled={saving}
+              />
+              <small className="settings-helper">Leave empty to disable the webhook.</small>
+            </label>
+
+            <div className="settings-field">
+              <span>HTTP method</span>
+              <div className="settings-methods">
+                <label>
+                  <input
+                    type="radio"
+                    name="webhook-method"
+                    value="GET"
+                    checked={method === "GET"}
+                    onChange={() => setMethod("GET")}
+                    disabled={saving}
+                  />
+                GET (payload is added to the "payload" query parameter)
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="webhook-method"
+                    value="POST"
+                    checked={method === "POST"}
+                    onChange={() => setMethod("POST")}
+                    disabled={saving}
+                  />
+                  POST
+                </label>
+              </div>
+            </div>
+
+            {method === "POST" && (
+              <label className="settings-field">
+                <span>POST body template</span>
+                <textarea
+                  className="editor-input"
+                  placeholder='Use {{payload}} to insert the rendered data'
+                  value={body}
+                  onChange={(event) => setBody(event.target.value)}
+                  disabled={saving}
+                />
+                <small className="settings-helper">
+                Use <code>{"{{payload}}"}</code> or drill into the structure (for example <code>{"{{payload.resolvedVariables.objectId}}"}</code>).
+                </small>
+              </label>
+            )}
+
+            <div className="settings-actions">
+              <button type="submit" className="primary-button" disabled={saving}>
+                {saving ? "Saving…" : "Save webhook"}
+              </button>
+              <button type="button" className="ghost-button" onClick={handleTestWebhook} disabled={saving || testing}>
+                {testing ? "Testing…" : "Test webhook"}
+              </button>
+              <button type="button" className="ghost-button" onClick={handleClear} disabled={saving}>
+                Disable webhook
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </section>
   );
