@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { LabelFormat, LabelLayout, LayoutElement } from "../../domain/models";
+import type { LabelFormat, LabelLayout } from "../../domain/models";
 import { sendMessage, type ResolvedVariable } from "../../shared/messaging";
-import { LabelCanvasDisplay, resolveElementDisplayValue } from "../shared/LabelCanvasDisplay";
+import { LabelCanvasDisplay } from "../shared/LabelCanvasDisplay";
 import type { PostPrintWebhookConfig } from "../../shared/webhook";
+import { buildPrintWebhookPayload, createSamplePrintWebhookPayload, sendPrintWebhook } from "../../shared/webhook";
 import "./popup.css";
 
 export function PopupApp(): JSX.Element {
@@ -152,13 +153,7 @@ export function PopupApp(): JSX.Element {
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();
-    const payload = buildPrintWebhookPayload(
-      activeLayout,
-      format,
-      resolvedMap,
-      dataSourceId ?? null,
-      dataSourceName,
-    );
+    const payload = buildPrintWebhookPayload(activeLayout, format, resolvedMap, dataSourceId ?? null, dataSourceName);
     printWindow.addEventListener("afterprint", () => {
       void sendPrintWebhook(payload, printWebhookConfig);
     }, { once: true });
@@ -260,154 +255,3 @@ function PreviewCanvas({ layout, format, resolvedMap }: PreviewCanvasProps): JSX
   );
 }
 
-function buildPrintableHtml(layout: LabelLayout, format: LabelFormat | null, resolvedMap: Record<string, string>): string {
-  const canvasMarkup = renderToStaticMarkup(
-    <LabelCanvasDisplay layout={layout} format={format} resolvedMap={resolvedMap} scale={1} />,
-  );
-  const width = format?.widthPx ?? 600;
-  const height = format?.heightPx ?? 320;
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Print preview</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: #f6f8fa;
-      font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-    }
-    .canvas-wrapper {
-      width: ${width}px;
-      height: ${height}px;
-    }
-    @media print {
-      body {
-        background: #ffffff;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="canvas-wrapper">
-    ${canvasMarkup}
-  </div>
-</body>
-</html>`;
-}
-
-interface PrintWebhookPayload {
-  dataSourceId: number | null;
-  dataSourceName: string;
-  layout: {
-    id: number;
-    name: string;
-    labelFormatId: number;
-  };
-  format: LabelFormat | null;
-  elements: Array<{
-    id: number;
-    name: string;
-    type: LayoutElement["type"];
-    mode: LayoutElement["mode"];
-    positionX: number;
-    positionY: number;
-    width: number;
-    height: number;
-    value: string;
-  }>;
-  resolvedVariables: Record<string, string>;
-  printedAt: string;
-}
-
-function buildPrintWebhookPayload(
-  layout: LabelLayout,
-  format: LabelFormat | null,
-  resolvedMap: Record<string, string>,
-  dataSourceId: number | null,
-  dataSourceName: string,
-): PrintWebhookPayload {
-  return {
-    dataSourceId,
-    dataSourceName,
-    layout: {
-      id: layout.id,
-      name: layout.name,
-      labelFormatId: layout.labelFormatId,
-    },
-    format,
-    elements: layout.elements.map((element) => ({
-      id: element.id,
-      name: element.name,
-      type: element.type,
-      mode: element.mode,
-      positionX: element.positionX,
-      positionY: element.positionY,
-      width: element.width,
-      height: element.height,
-      value: resolveElementDisplayValue(element, resolvedMap),
-    })),
-    resolvedVariables: { ...resolvedMap },
-    printedAt: new Date().toISOString(),
-  };
-}
-
-async function sendPrintWebhook(payload: PrintWebhookPayload, config: PostPrintWebhookConfig | null): Promise<void> {
-  if (!config?.url?.trim()) return;
-  const payloadJson = JSON.stringify(payload);
-  let requestUrl: string;
-  try {
-    const url = new URL(config.url);
-    url.searchParams.set("payload", payloadJson);
-    requestUrl = url.toString();
-  } catch (error) {
-    console.error("Unable to build webhook URL", error);
-    return;
-  }
-
-  try {
-    if (config.method === "GET") {
-      await fetch(requestUrl, { method: "GET" });
-      return;
-    }
-    const template = config.body?.trim();
-    const bodyContent = template
-      ? interpolateWebhookBody(template, payload, payloadJson)
-      : payloadJson;
-    await fetch(requestUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: bodyContent,
-    });
-  } catch (error) {
-    console.error("Post-print webhook failed", error);
-  }
-}
-
-function interpolateWebhookBody(template: string, payload: PrintWebhookPayload, payloadJson: string): string {
-  const placeholder = /{{\s*([^}]+)\s*}}/g;
-  let hasPlaceholder = false;
-  const replaced = template.replace(placeholder, (_, token) => {
-    hasPlaceholder = true;
-    if (!token) return "";
-    const trimmed = token.trim();
-    if (!trimmed) return "";
-    if (trimmed === "payload") {
-      return payloadJson;
-    }
-    const path = trimmed.startsWith("payload.") ? trimmed.slice("payload.".length) : trimmed;
-    const value = path.split(".").reduce<unknown>((current, key) => {
-      if (current && typeof current === "object" && key in current) {
-        return (current as Record<string, unknown>)[key];
-      }
-      return undefined;
-    }, payload as unknown);
-    if (value === undefined || value === null) return "";
-    return typeof value === "string" ? value : JSON.stringify(value);
-  });
-  if (!hasPlaceholder) {
-    return `${replaced}\n${payloadJson}`;
-  }
-  return replaced;
-}

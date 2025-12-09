@@ -2,7 +2,7 @@ import type { CSSProperties, FormEvent, JSX } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { DataSource, LabelFormat, LabelLayout, LayoutElement, LayoutVariable } from "../../domain/models";
 import { sendMessage, type MessageResponse, type ResolvedVariable } from "../../shared/messaging";
-import type { PostPrintWebhookConfig, PrintWebhookMethod } from "../../shared/webhook";
+import { createSamplePrintWebhookPayload, sendPrintWebhook, type PostPrintWebhookConfig, type PrintWebhookMethod } from "../../shared/webhook";
 import "./options-shell.css";
 
 type OptionsSection = "layouts" | "dataSources" | "formats" | "importExport" | "settings";
@@ -2275,6 +2275,7 @@ function ImportExportWorkspace(): JSX.Element {
 function SettingsWorkspace(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [url, setUrl] = useState("");
@@ -2348,6 +2349,44 @@ function SettingsWorkspace(): JSX.Element {
     setMethod("GET");
     setBody("");
     void saveSettings(null, "Webhook disabled.");
+  };
+
+  const handleTestWebhook = async () => {
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) {
+      setError("Provide a webhook URL before testing.");
+      return;
+    }
+    setError(null);
+    setStatus("Sending test webhook…");
+    setTesting(true);
+    const payload = createSamplePrintWebhookPayload();
+    const testConfig: PostPrintWebhookConfig = {
+      url: trimmedUrl,
+      method,
+      body: method === "POST" ? body : undefined,
+    };
+    try {
+      const response = await sendPrintWebhook(payload, testConfig);
+      console.log("Webhook test response", response);
+      if (response) {
+        let text = "";
+        try {
+          text = await response.text();
+          console.log("Webhook test response body", text);
+        } catch (inner) {
+          console.warn("Unable to read webhook test response body", inner);
+        }
+        const bodySnippet = text ? ` · body: ${text.substring(0, 120)}` : "";
+        setStatus(`Test response: ${response.status} ${response.statusText}${bodySnippet}`);
+      } else {
+        setStatus("Test webhook sent (no response).");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTesting(false);
+    }
   };
 
   return (
@@ -2428,6 +2467,9 @@ function SettingsWorkspace(): JSX.Element {
             <div className="settings-actions">
               <button type="submit" className="primary-button" disabled={saving}>
                 {saving ? "Saving…" : "Save webhook"}
+              </button>
+              <button type="button" className="ghost-button" onClick={handleTestWebhook} disabled={saving || testing}>
+                {testing ? "Testing…" : "Test webhook"}
               </button>
               <button type="button" className="ghost-button" onClick={handleClear} disabled={saving}>
                 Disable webhook
