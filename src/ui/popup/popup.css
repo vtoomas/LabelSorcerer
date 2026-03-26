@@ -124,12 +124,78 @@ body {
   color: #6b6b6f;
 }
 
+.stacked-layout-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.stacked-layout-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.stacked-layout-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.6rem;
+  background: #eef2ff;
+  color: #1c1c1e;
+  font-size: 0.8rem;
+}
+
+.stacked-layout-chip-remove {
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.stacked-layout-picker {
+  border-radius: 999px;
+  border: 1px solid #d8dbe2;
+  background: #ffffff;
+  padding: 0.2rem 0.6rem;
+  font: inherit;
+  max-width: 220px;
+}
+
 .preview-canvas-frame {
   border: none;
   border-radius: 0;
   padding: 0;
   background: transparent;
   box-shadow: none;
+}
+
+.stacked-preview-frame {
+  padding: 0.5rem 0;
+}
+
+.stacked-preview-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.stacked-preview-cell {
+  display: inline-flex;
+}
+
+.stored-stack-note {
+  margin: 0;
+  padding-top: 0.35rem;
+  font-size: 0.72rem;
+  color: #6b6b6f;
+}
+
+.stored-stack-note-active {
+  color: #5b4bcd;
+  font-weight: 600;
 }
 
 .popup-footer {

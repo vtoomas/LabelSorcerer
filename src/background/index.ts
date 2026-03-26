@@ -15,6 +15,7 @@ import {
 import { getLabelFormats, saveLabelFormat, deleteLabelFormat } from "../domain/labelFormatService";
 import { deleteLayout, getLayouts, saveLayout } from "../domain/layoutService";
 import { getPrintWebhookConfig, savePrintWebhookConfig } from "../domain/printWebhookService";
+import { getLayoutStack, saveLayoutStack } from "../domain/layoutStackService";
 
 const BUILD_VERSION = "0.1.0";
 let lastContentTabId: number | null = null;
@@ -94,6 +95,7 @@ async function buildActiveContext(): Promise<ActiveTabContext> {
   const tab = await queryActiveTab();
   const url = tab?.url;
   const dataSource = await findMatchingDataSource(url ?? "");
+  const layoutStack = dataSource ? await getLayoutStack(dataSource.id) : [];
 
   return {
     tabId: tab?.id,
@@ -101,6 +103,7 @@ async function buildActiveContext(): Promise<ActiveTabContext> {
     dataSourceId: dataSource?.id ?? null,
     dataSourceName: dataSource?.name ?? null,
     defaultLayoutId: dataSource?.defaultLayoutId ?? null,
+    layoutStack: layoutStack.length ? layoutStack : undefined,
     resolvedAt: new Date().toISOString()
   };
 }
@@ -130,6 +133,16 @@ async function handleMessage(message: MessageRequest): Promise<MessageResponse> 
     case "deleteDataSource":
       await deleteDataSource(message.payload.id);
       return { type: "dataSourceDeleted", payload: { id: message.payload.id } };
+    case "saveLayoutStack":
+      await saveLayoutStack(message.payload.dataSourceId, message.payload.layoutIds);
+      return { type: "layoutStackSaved", payload: message.payload };
+    case "getLayoutStack": {
+      const layoutIds = await getLayoutStack(message.payload.dataSourceId);
+      return {
+        type: "layoutStack",
+        payload: { dataSourceId: message.payload.dataSourceId, layoutIds }
+      };
+    }
     case "evaluateDataSource": {
       const dataSource = await getDataSourceById(message.payload.dataSourceId);
       if (!dataSource) {

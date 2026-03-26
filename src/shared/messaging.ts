@@ -17,6 +17,7 @@ export interface ActiveTabContext {
   dataSourceId?: number | null;
   dataSourceName?: string | null;
   defaultLayoutId?: number | null;
+  layoutStack?: number[];
   resolvedAt: string;
 }
 
@@ -39,7 +40,9 @@ export type MessageRequest =
   | { type: "saveDataSource"; payload: DataSource }
   | { type: "deleteDataSource"; payload: { id: number } }
   | { type: "getPrintWebhookSettings" }
-  | { type: "savePrintWebhookSettings"; payload: PostPrintWebhookConfig | null };
+  | { type: "savePrintWebhookSettings"; payload: PostPrintWebhookConfig | null }
+  | { type: "saveLayoutStack"; payload: { dataSourceId: number; layoutIds: number[] } }
+  | { type: "getLayoutStack"; payload: { dataSourceId: number } };
 
 export type MessageResponse =
   | { type: "status"; payload: StatusPayload }
@@ -58,7 +61,9 @@ export type MessageResponse =
       type: "evaluationResult";
       payload: { dataSourceId?: number | null; resolved: ResolvedVariable[]; tabId?: number };
     }
-  | { type: "error"; payload: { message: string } };
+  | { type: "error"; payload: { message: string } }
+  | { type: "layoutStackSaved"; payload: { dataSourceId: number; layoutIds: number[] } }
+  | { type: "layoutStack"; payload: { dataSourceId: number; layoutIds: number[] } };
 
 export function sendMessage(message: MessageRequest): Promise<MessageResponse> {
   return new Promise((resolve, reject) => {

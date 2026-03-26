@@ -145,6 +145,7 @@ export interface Config {
   nextLabelFormatId: number;
   nextDataSourceId: number;
   postPrintWebhook?: PostPrintWebhookConfig | null;
+  layoutStacks?: Record<number, number[]>;
 }
 
 const DEFAULT_CONFIG: Config = {
@@ -154,7 +155,8 @@ const DEFAULT_CONFIG: Config = {
   nextLayoutId: SAMPLE_LAYOUTS.length + 1,
   nextLabelFormatId: SAMPLE_FORMATS.length + 1,
   nextDataSourceId: SAMPLE_DATA_SOURCES.length + 1,
-  postPrintWebhook: null
+  postPrintWebhook: null,
+  layoutStacks: {}
 };
 
 function clone<T>(value: T): T {
@@ -201,6 +203,7 @@ function applyDefaults(raw?: Partial<Config>): Config {
   const nextLayoutId = base.nextLayoutId ?? layouts.length + 1;
   const nextDataSourceId = base.nextDataSourceId ?? dataSources.length + 1;
   const postPrintWebhook = base.postPrintWebhook ?? null;
+  const layoutStacks = base.layoutStacks ?? {};
   return {
     layouts,
     labelFormats,
@@ -208,6 +211,7 @@ function applyDefaults(raw?: Partial<Config>): Config {
     nextLayoutId,
     nextLabelFormatId,
     nextDataSourceId,
-    postPrintWebhook
+    postPrintWebhook,
+    layoutStacks
   };
 }

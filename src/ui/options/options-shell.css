@@ -401,7 +401,7 @@
 .layout-canvas-element {
   position: absolute;
   border-radius: 0;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.85);
   color: inherit;
   font-weight: 600;
