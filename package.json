@@ -6,7 +6,8 @@
   "scripts": {
     "build": "bun run scripts/build.ts",
     "clean": "bun run scripts/clean.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "test:e2e": "bun run build && playwright test --project=chromium"
   },
   "dependencies": {
     "react": "^19",
@@ -14,8 +15,10 @@
     "react-qr-code": "^2.0.18"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/bun": "latest",
     "@types/chrome": "^0.0.266",
+    "@types/node": "^25.5.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "linkedom": "^0.18.12"

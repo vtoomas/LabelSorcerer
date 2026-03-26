@@ -1,0 +1,364 @@
+{
+  "labelFormats": [
+    {
+      "description": "60px seems to be working",
+      "heightPx": 78,
+      "id": 1765187497485,
+      "marginBottomPx": 1,
+      "marginLeftPx": 4,
+      "marginRightPx": 1,
+      "marginTopPx": 4,
+      "name": "18mm 64*78 px",
+      "widthPx": 64
+    },
+    {
+      "description": "60px seems to be working",
+      "heightPx": 90,
+      "id": 1765285116823,
+      "marginBottomPx": 1,
+      "marginLeftPx": 4,
+      "marginRightPx": 1,
+      "marginTopPx": 4,
+      "name": "18mm 60x90px",
+      "widthPx": 64
+    },
+    {
+      "description": null,
+      "heightPx": 140,
+      "id": 1765352072024,
+      "marginBottomPx": 1,
+      "marginLeftPx": 4,
+      "marginRightPx": 1,
+      "marginTopPx": 4,
+      "name": "18mm 60x140px",
+      "widthPx": 64
+    }
+  ],
+  "layouts": [
+    {
+      "elements": [
+        {
+          "dynamicBinding": {
+            "overrideFontSize": null,
+            "overridePrefix": "https://asset.tll.aero/",
+            "overrideSuffix": "",
+            "overrideTrimWhitespace": true,
+            "variableKey": "objectId"
+          },
+          "fontSize": null,
+          "height": 60,
+          "id": 1765284812311,
+          "mode": "dynamic",
+          "name": "QR code",
+          "positionX": 0,
+          "positionY": 0,
+          "rotation": 0,
+          "staticContent": null,
+          "type": "qrcode",
+          "width": 60
+        },
+        {
+          "dynamicBinding": {
+            "overrideFontSize": 14,
+            "overridePrefix": "",
+            "overrideSuffix": "",
+            "overrideTrimWhitespace": true,
+            "variableKey": "objectId"
+          },
+          "fontSize": 9,
+          "height": 10,
+          "id": 1765284812312,
+          "mode": "dynamic",
+          "name": "Text",
+          "positionX": 0,
+          "positionY": 60,
+          "rotation": 0,
+          "staticContent": null,
+          "textAlignment": "center",
+          "type": "text",
+          "width": 60
+        },
+        {
+          "dynamicBinding": {
+            "overrideFontSize": 14,
+            "overridePrefix": "",
+            "overrideSuffix": "",
+            "overrideTrimWhitespace": true,
+            "variableKey": "Name"
+          },
+          "fontSize": 14,
+          "height": 16,
+          "id": 1765285192830,
+          "mode": "dynamic",
+          "name": "Text",
+          "positionX": 0,
+          "positionY": 72,
+          "rotation": 0,
+          "shrinkToFit": true,
+          "staticContent": null,
+          "textAlignment": "center",
+          "type": "text",
+          "width": 60
+        }
+      ],
+      "id": 1765284851318,
+      "labelFormatId": 1765285116823,
+      "name": "Asset QR + Name",
+      "softCutsY": [
+        90
+      ],
+      "variables": [
+        {
+          "key": "objectId",
+          "label": "ObjectID",
+          "multiple": true
+        },
+        {
+          "key": "Name",
+          "label": "Name",
+          "multiple": false
+        }
+      ]
+    },
+    {
+      "elements": [
+        {
+          "fontSize": 12,
+          "height": 32,
+          "id": 1765351174886,
+          "mode": "static",
+          "name": "compname",
+          "positionX": 67,
+          "positionY": 0,
+          "rotation": 90,
+          "staticContent": "AS Tallinna Lennujaam",
+          "textAlignment": "center",
+          "type": "text",
+          "width": 140
+        },
+        {
+          "fontSize": 14,
+          "height": 32,
+          "id": 1765351737881,
+          "mode": "static",
+          "name": "itabi",
+          "positionX": 47,
+          "positionY": 0,
+          "rotation": 90,
+          "staticContent": "IT abi: itabi@tll.aero",
+          "textAlignment": "center",
+          "type": "text",
+          "width": 140
+        },
+        {
+          "fontSize": 14,
+          "height": 32,
+          "id": 1765351798671,
+          "mode": "static",
+          "name": "phone",
+          "positionX": 28,
+          "positionY": 0,
+          "rotation": 90,
+          "staticContent": "☎ (605) 8344",
+          "textAlignment": "center",
+          "type": "text",
+          "width": 140
+        }
+      ],
+      "id": 1765351967829,
+      "labelFormatId": 1765352072024,
+      "name": "TLL IT kontakt",
+      "variables": []
+    },
+    {
+      "elements": [
+        {
+          "dynamicBinding": {
+            "overrideFontSize": null,
+            "overridePrefix": "https://asset.tll.aero/",
+            "overrideSuffix": "",
+            "overrideTrimWhitespace": true,
+            "variableKey": "objectId"
+          },
+          "fontSize": null,
+          "height": 58,
+          "id": 1765364249056,
+          "mode": "dynamic",
+          "name": "QR code",
+          "positionX": 0,
+          "positionY": 0,
+          "rotation": 0,
+          "staticContent": null,
+          "type": "qrcode",
+          "width": 58
+        },
+        {
+          "dynamicBinding": {
+            "overrideFontSize": 14,
+            "overridePrefix": "",
+            "overrideSuffix": "",
+            "overrideTrimWhitespace": true,
+            "variableKey": "objectId"
+          },
+          "fontSize": 9,
+          "height": 10,
+          "id": 1765364249057,
+          "mode": "dynamic",
+          "name": "Text",
+          "positionX": 0,
+          "positionY": 58,
+          "rotation": 0,
+          "staticContent": null,
+          "textAlignment": "center",
+          "type": "text",
+          "width": 60
+        }
+      ],
+      "id": 1765364295020,
+      "labelFormatId": 1765187497485,
+      "name": "Asset QR",
+      "softCutsY": [
+        90
+      ],
+      "variables": [
+        {
+          "key": "objectId",
+          "label": "ObjectID",
+          "multiple": true
+        }
+      ]
+    },
+    {
+      "elements": [
+        {
+          "dynamicBinding": {
+            "overrideFontSize": 14,
+            "overridePrefix": "",
+            "overrideSuffix": "",
+            "overrideTrimWhitespace": true,
+            "variableKey": "Name"
+          },
+          "fontSize": 14,
+          "height": 16,
+          "id": 1765369655084,
+          "mode": "dynamic",
+          "name": "Text",
+          "positionX": 0,
+          "positionY": 0,
+          "rotation": 0,
+          "shrinkToFit": true,
+          "staticContent": null,
+          "textAlignment": "center",
+          "type": "text",
+          "width": 60
+        }
+      ],
+      "id": 1765369722224,
+      "labelFormatId": 1765187497485,
+      "name": "Asset small Name",
+      "softCutsY": [
+        90
+      ],
+      "variables": [
+        {
+          "key": "Name",
+          "label": "Name",
+          "multiple": false
+        }
+      ]
+    }
+  ],
+  "dataSources": [
+    {
+      "defaultLayoutId": 1765284851318,
+      "id": 1765197930355,
+      "name": "Jira Asset single object",
+      "urlPattern": "https://tll-aero.atlassian.net/jira/assets/object/*",
+      "variableMappings": [
+        {
+          "attributeName": "href",
+          "cssSelector": "nav[aria-label=\"Breadcrumbs\"] li:last-child > a",
+          "key": "objectId",
+          "multiple": true,
+          "prefix": null,
+          "regexMatchIndex": 0,
+          "regexPattern": "(?<=\\bobject\\/)\\d+",
+          "suffix": null,
+          "trimWhitespace": true
+        },
+        {
+          "attributeName": null,
+          "cssSelector": "h1[data-testid=\"servicedesk-insight-object-view.ui.header.name-inline-edit.page-title\"]",
+          "key": "Name",
+          "multiple": false,
+          "prefix": null,
+          "regexMatchIndex": 0,
+          "regexPattern": null,
+          "suffix": null,
+          "trimWhitespace": true
+        }
+      ]
+    },
+    {
+      "defaultLayoutId": 1765284851318,
+      "id": 1765364774889,
+      "name": "Jira Asset single ex list",
+      "urlPattern": "https://tll-aero.atlassian.net/jira/assets/object-schema/*?objectId=*&typeId=*&view=list",
+      "variableMappings": [
+        {
+          "attributeName": "href",
+          "cssSelector": "nav[aria-label=\"Breadcrumbs\"] li:last-child > a",
+          "key": "objectId",
+          "multiple": true,
+          "prefix": null,
+          "regexMatchIndex": 0,
+          "regexPattern": "(?<=\\bobject\\/)\\d+",
+          "suffix": null,
+          "trimWhitespace": true
+        },
+        {
+          "attributeName": null,
+          "cssSelector": "[data-testid=\"servicedesk-insight-object-view.ui.header.name-inline-edit.page-title\"]",
+          "key": "Name",
+          "multiple": false,
+          "prefix": null,
+          "regexMatchIndex": 0,
+          "regexPattern": null,
+          "suffix": null,
+          "trimWhitespace": true
+        }
+      ]
+    },
+    {
+      "defaultLayoutId": 1765284851318,
+      "id": 1765436587766,
+      "name": "Jira Asset single ex list (copy)",
+      "urlPattern": "https://tll-aero.atlassian.net/jira/assets/object-schema/*objectId=*",
+      "variableMappings": [
+        {
+          "attributeName": "href",
+          "cssSelector": "nav[aria-label=\"Breadcrumbs\"] li:last-child > a",
+          "key": "objectId",
+          "multiple": true,
+          "prefix": null,
+          "regexMatchIndex": 0,
+          "regexPattern": "(?<=\\bobject\\/)\\d+",
+          "suffix": null,
+          "trimWhitespace": true
+        },
+        {
+          "attributeName": null,
+          "cssSelector": "[data-testid=\"servicedesk-insight-object-view.ui.header.name-inline-edit.page-title\"]",
+          "key": "Name",
+          "multiple": false,
+          "prefix": null,
+          "regexMatchIndex": 0,
+          "regexPattern": null,
+          "suffix": null,
+          "trimWhitespace": true
+        }
+      ]
+    }
+  ],
+  "exportedAt": "2025-12-11T09:26:14.560Z"
+}
