@@ -249,7 +249,7 @@ export function OptionsApp(): JSX.Element {
         {section === "layouts" && <LayoutsWorkspace formats={formats} />}
         {section === "dataSources" && <DataSourcesWorkspace fallbackLayouts={MOCK_LAYOUTS} />}
         {section === "formats" && <LabelFormatsWorkspace formats={formats} onChange={setFormats} />}
-        {section === "importExport" && <ImportExportWorkspace />}
+        {section === "importExport" && <ImportExportWorkspace onImportComplete={setFormats} />}
         {section === "settings" && <SettingsWorkspace />}
       </main>
     </div>
@@ -310,11 +310,6 @@ function LayoutsWorkspace({ formats }: LayoutsWorkspaceProps): JSX.Element {
     };
   }, []);
 
-  const ensureId = (layout: LabelLayout): LabelLayout => {
-    if (layout.id && layout.id > 0) return layout;
-    return { ...layout, id: Date.now() };
-  };
-
   const upsertLayout = (layout: LabelLayout) => {
     setLayouts((prev) => {
       const existingIndex = prev.findIndex((item) => item.id === layout.id);
@@ -328,20 +323,12 @@ function LayoutsWorkspace({ formats }: LayoutsWorkspaceProps): JSX.Element {
   };
 
   const handleSaveLayout = async (draft: LabelLayout) => {
-    const layoutToSave = ensureId(draft);
     setStatus(null);
-    try {
-      const response = await sendMessage({ type: "saveLayout", payload: layoutToSave });
-      const saved = unwrapLayoutSaved(response, layoutToSave);
-      upsertLayout(saved);
-      setStatus("Layout saved");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      // Keep local change so the UI can proceed even if background fails
-      upsertLayout(layoutToSave);
-    } finally {
-      setEditingLayout(null);
-    }
+    setError(null);
+    const response = await sendMessage({ type: "saveLayout", payload: draft });
+    const saved = unwrapLayoutSaved(response, draft);
+    upsertLayout(saved);
+    setStatus("Layout saved");
   };
 
   const handleDeleteLayout = async (layout: LabelLayout) => {
@@ -2010,6 +1997,16 @@ function unwrapLayoutSaved(response: MessageResponse, fallback: LabelLayout): La
   return fallback;
 }
 
+function unwrapLabelFormatSaved(response: MessageResponse, fallback: LabelFormat): LabelFormat {
+  if (response.type === "labelFormatSaved") {
+    return response.payload;
+  }
+  if (response.type === "error") {
+    throw new Error(response.payload.message);
+  }
+  return fallback;
+}
+
 function unwrapDataSources(response: MessageResponse): DataSource[] {
   if (response.type === "dataSources") {
     return response.payload;
@@ -2220,7 +2217,11 @@ function createBlankFormat(): LabelFormat {
   };
 }
 
-function ImportExportWorkspace(): JSX.Element {
+interface ImportExportWorkspaceProps {
+  onImportComplete: (formats: LabelFormat[]) => void;
+}
+
+function ImportExportWorkspace({ onImportComplete }: ImportExportWorkspaceProps): JSX.Element {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -2278,15 +2279,17 @@ function ImportExportWorkspace(): JSX.Element {
       const dataSources = parsed.dataSources ?? [];
 
       for (const format of formats) {
-        await sendMessage({ type: "saveLabelFormat", payload: format });
+        unwrapLabelFormatSaved(await sendMessage({ type: "saveLabelFormat", payload: format }), format);
       }
       for (const layout of layouts) {
-        await sendMessage({ type: "saveLayout", payload: layout });
+        unwrapLayoutSaved(await sendMessage({ type: "saveLayout", payload: layout }), layout);
       }
       for (const source of dataSources) {
-        await sendMessage({ type: "saveDataSource", payload: source });
+        unwrapDataSourceSaved(await sendMessage({ type: "saveDataSource", payload: source }), source);
       }
 
+      const refreshedFormats = unwrapLabelFormats(await sendMessage({ type: "getLabelFormats" }));
+      onImportComplete(refreshedFormats);
       setStatus("Imported formats, layouts, and data sources.");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

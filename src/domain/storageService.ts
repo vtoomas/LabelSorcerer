@@ -1,7 +1,25 @@
 import type { DataSource, LabelFormat, LabelLayout } from "./models";
 import type { PostPrintWebhookConfig } from "../shared/webhook";
 
-const STORAGE_KEY = "labelsorcerer:config";
+export const LEGACY_STORAGE_KEY = "labelsorcerer:config";
+export const META_STORAGE_KEY = "labelsorcerer:meta";
+export const WEBHOOK_STORAGE_KEY = "labelsorcerer:webhook";
+export const LAYOUT_STACKS_STORAGE_KEY = "labelsorcerer:layoutStacks";
+const STORAGE_VERSION = 2 as const;
+
+const layoutStorageKey = (id: number) => `labelsorcerer:layout:${id}`;
+const labelFormatStorageKey = (id: number) => `labelsorcerer:format:${id}`;
+const dataSourceStorageKey = (id: number) => `labelsorcerer:dataSource:${id}`;
+
+type StorageMeta = {
+  version: typeof STORAGE_VERSION;
+  layoutIds: number[];
+  labelFormatIds: number[];
+  dataSourceIds: number[];
+  nextLayoutId: number;
+  nextLabelFormatId: number;
+  nextDataSourceId: number;
+};
 
 const SAMPLE_FORMATS: LabelFormat[] = [
   {
@@ -163,9 +181,105 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-async function readStorage(): Promise<Record<string, unknown>> {
+function normalizeIds(ids: number[] | undefined): number[] {
+  if (!ids) return [];
+  return [...new Set(ids)];
+}
+
+function normalizeConfig(config: Config): Config {
+  const layouts = clone(config.layouts ?? []);
+  const labelFormats = clone(config.labelFormats ?? []);
+  const dataSources = clone(config.dataSources ?? []);
+  return {
+    layouts,
+    labelFormats,
+    dataSources,
+    nextLayoutId: config.nextLayoutId ?? layouts.length + 1,
+    nextLabelFormatId: config.nextLabelFormatId ?? labelFormats.length + 1,
+    nextDataSourceId: config.nextDataSourceId ?? dataSources.length + 1,
+    postPrintWebhook: config.postPrintWebhook ?? null,
+    layoutStacks: clone(config.layoutStacks ?? {})
+  };
+}
+
+function applyLegacyDefaults(raw?: Partial<Config>): Config {
+  const base = raw ?? {};
+  const labelFormats = clone(base.labelFormats ?? SAMPLE_FORMATS);
+  const layouts = clone(base.layouts ?? SAMPLE_LAYOUTS);
+  const dataSources = clone(base.dataSources ?? SAMPLE_DATA_SOURCES);
+  return {
+    layouts,
+    labelFormats,
+    dataSources,
+    nextLayoutId: base.nextLayoutId ?? layouts.length + 1,
+    nextLabelFormatId: base.nextLabelFormatId ?? labelFormats.length + 1,
+    nextDataSourceId: base.nextDataSourceId ?? dataSources.length + 1,
+    postPrintWebhook: base.postPrintWebhook ?? null,
+    layoutStacks: clone(base.layoutStacks ?? {})
+  };
+}
+
+function buildStorageMeta(config: Config): StorageMeta {
+  return {
+    version: STORAGE_VERSION,
+    layoutIds: config.layouts.map((layout) => layout.id),
+    labelFormatIds: config.labelFormats.map((format) => format.id),
+    dataSourceIds: config.dataSources.map((dataSource) => dataSource.id),
+    nextLayoutId: config.nextLayoutId,
+    nextLabelFormatId: config.nextLabelFormatId,
+    nextDataSourceId: config.nextDataSourceId
+  };
+}
+
+function buildV2Items(config: Config): Record<string, unknown> {
+  const items: Record<string, unknown> = {
+    [META_STORAGE_KEY]: buildStorageMeta(config),
+    [WEBHOOK_STORAGE_KEY]: clone(config.postPrintWebhook ?? null),
+    [LAYOUT_STACKS_STORAGE_KEY]: clone(config.layoutStacks ?? {})
+  };
+
+  for (const layout of config.layouts) {
+    items[layoutStorageKey(layout.id)] = clone(layout);
+  }
+  for (const format of config.labelFormats) {
+    items[labelFormatStorageKey(format.id)] = clone(format);
+  }
+  for (const dataSource of config.dataSources) {
+    items[dataSourceStorageKey(dataSource.id)] = clone(dataSource);
+  }
+
+  return items;
+}
+
+function hydrateV2Config(items: Record<string, unknown>, meta: Partial<StorageMeta>): Config {
+  const layoutIds = normalizeIds(meta.layoutIds);
+  const labelFormatIds = normalizeIds(meta.labelFormatIds);
+  const dataSourceIds = normalizeIds(meta.dataSourceIds);
+
+  return normalizeConfig({
+    layouts: layoutIds
+      .map((id) => items[layoutStorageKey(id)] as LabelLayout | undefined)
+      .filter((value): value is LabelLayout => Boolean(value))
+      .map((value) => clone(value)),
+    labelFormats: labelFormatIds
+      .map((id) => items[labelFormatStorageKey(id)] as LabelFormat | undefined)
+      .filter((value): value is LabelFormat => Boolean(value))
+      .map((value) => clone(value)),
+    dataSources: dataSourceIds
+      .map((id) => items[dataSourceStorageKey(id)] as DataSource | undefined)
+      .filter((value): value is DataSource => Boolean(value))
+      .map((value) => clone(value)),
+    nextLayoutId: meta.nextLayoutId ?? layoutIds.length + 1,
+    nextLabelFormatId: meta.nextLabelFormatId ?? labelFormatIds.length + 1,
+    nextDataSourceId: meta.nextDataSourceId ?? dataSourceIds.length + 1,
+    postPrintWebhook: (items[WEBHOOK_STORAGE_KEY] as PostPrintWebhookConfig | null | undefined) ?? null,
+    layoutStacks: (items[LAYOUT_STACKS_STORAGE_KEY] as Record<number, number[]> | undefined) ?? {}
+  });
+}
+
+async function readStorage(keys?: string | string[] | null): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
-    chrome.storage.sync.get(STORAGE_KEY, (items) => {
+    chrome.storage.sync.get(keys ?? null, (items) => {
       if (chrome.runtime.lastError) {
         reject(chrome.runtime.lastError);
         return;
@@ -175,16 +289,9 @@ async function readStorage(): Promise<Record<string, unknown>> {
   });
 }
 
-export async function getConfig(): Promise<Config> {
-  const stored = await readStorage();
-  const raw = stored[STORAGE_KEY] as Partial<Config> | undefined;
-  const hydrated = applyDefaults(raw);
-  return clone(hydrated);
-}
-
-export async function saveConfig(config: Config): Promise<void> {
+async function writeStorage(items: Record<string, unknown>): Promise<void> {
   return new Promise((resolve, reject) => {
-    chrome.storage.sync.set({ [STORAGE_KEY]: clone(config) }, () => {
+    chrome.storage.sync.set(items, () => {
       if (chrome.runtime.lastError) {
         reject(chrome.runtime.lastError);
         return;
@@ -194,24 +301,72 @@ export async function saveConfig(config: Config): Promise<void> {
   });
 }
 
-function applyDefaults(raw?: Partial<Config>): Config {
-  const base = raw ?? {};
-  const labelFormats = base.labelFormats ?? SAMPLE_FORMATS;
-  const layouts = base.layouts ?? SAMPLE_LAYOUTS;
-  const dataSources = base.dataSources ?? SAMPLE_DATA_SOURCES;
-  const nextLabelFormatId = base.nextLabelFormatId ?? labelFormats.length + 1;
-  const nextLayoutId = base.nextLayoutId ?? layouts.length + 1;
-  const nextDataSourceId = base.nextDataSourceId ?? dataSources.length + 1;
-  const postPrintWebhook = base.postPrintWebhook ?? null;
-  const layoutStacks = base.layoutStacks ?? {};
-  return {
-    layouts,
-    labelFormats,
-    dataSources,
-    nextLayoutId,
-    nextLabelFormatId,
-    nextDataSourceId,
-    postPrintWebhook,
-    layoutStacks
-  };
+async function removeStorage(keys: string | string[]): Promise<void> {
+  const list = Array.isArray(keys) ? keys : [keys];
+  if (list.length === 0) return;
+
+  return new Promise((resolve, reject) => {
+    chrome.storage.sync.remove(list, () => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function persistV2Config(config: Config, existingItems?: Record<string, unknown>): Promise<void> {
+  const normalized = normalizeConfig(config);
+  const items = existingItems ?? await readStorage(null);
+  const currentMeta = items[META_STORAGE_KEY] as Partial<StorageMeta> | undefined;
+  const nextItems = buildV2Items(normalized);
+
+  await writeStorage(nextItems);
+
+  if (currentMeta?.version === STORAGE_VERSION) {
+    const staleKeys = [
+      ...normalizeIds(currentMeta.layoutIds)
+        .filter((id) => !normalized.layouts.some((layout) => layout.id === id))
+        .map(layoutStorageKey),
+      ...normalizeIds(currentMeta.labelFormatIds)
+        .filter((id) => !normalized.labelFormats.some((format) => format.id === id))
+        .map(labelFormatStorageKey),
+      ...normalizeIds(currentMeta.dataSourceIds)
+        .filter((id) => !normalized.dataSources.some((dataSource) => dataSource.id === id))
+        .map(dataSourceStorageKey),
+      LEGACY_STORAGE_KEY
+    ];
+
+    await removeStorage(staleKeys);
+    return;
+  }
+
+  if (LEGACY_STORAGE_KEY in items) {
+    await removeStorage(LEGACY_STORAGE_KEY);
+  }
+}
+
+export async function getConfig(): Promise<Config> {
+  const stored = await readStorage(null);
+  const meta = stored[META_STORAGE_KEY] as Partial<StorageMeta> | undefined;
+
+  if (meta?.version === STORAGE_VERSION) {
+    return hydrateV2Config(stored, meta);
+  }
+
+  const legacyConfig = stored[LEGACY_STORAGE_KEY] as Partial<Config> | undefined;
+  if (legacyConfig) {
+    const migrated = applyLegacyDefaults(legacyConfig);
+    await persistV2Config(migrated, stored);
+    return clone(migrated);
+  }
+
+  const seeded = clone(DEFAULT_CONFIG);
+  await persistV2Config(seeded, stored);
+  return clone(seeded);
+}
+
+export async function saveConfig(config: Config): Promise<void> {
+  await persistV2Config(config);
 }
