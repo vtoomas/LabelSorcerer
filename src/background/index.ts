@@ -14,6 +14,7 @@ import {
 } from "../domain/dataSourceService";
 import { getLabelFormats, saveLabelFormat, deleteLabelFormat } from "../domain/labelFormatService";
 import { deleteLayout, getLayouts, saveLayout } from "../domain/layoutService";
+import { getPrintBehaviorSettings, savePrintBehaviorSettings } from "../domain/printBehaviorService";
 import { getPrintWebhookConfig, savePrintWebhookConfig } from "../domain/printWebhookService";
 import { getLayoutStack, saveLayoutStack } from "../domain/layoutStackService";
 
@@ -205,6 +206,11 @@ async function handleMessage(message: MessageRequest): Promise<MessageResponse> 
     case "savePrintWebhookSettings":
       await savePrintWebhookConfig(message.payload);
       return { type: "printWebhookSettings", payload: message.payload };
+    case "getPrintBehaviorSettings":
+      return { type: "printBehaviorSettings", payload: await getPrintBehaviorSettings() };
+    case "savePrintBehaviorSettings":
+      await savePrintBehaviorSettings(message.payload);
+      return { type: "printBehaviorSettings", payload: message.payload };
     default:
       return { type: "error", payload: { message: "Unknown message type." } };
   }

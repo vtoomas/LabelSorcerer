@@ -1,4 +1,5 @@
 import type { DataSource, DataSourceVariableMapping, LabelFormat, LabelLayout } from "../domain/models";
+import type { PrintBehaviorSettings } from "../domain/printBehaviorService";
 import type { MappingEvaluationResult } from "./mappingEvaluator";
 import type { PostPrintWebhookConfig } from "./webhook";
 
@@ -41,6 +42,8 @@ export type MessageRequest =
   | { type: "deleteDataSource"; payload: { id: number } }
   | { type: "getPrintWebhookSettings" }
   | { type: "savePrintWebhookSettings"; payload: PostPrintWebhookConfig | null }
+  | { type: "getPrintBehaviorSettings" }
+  | { type: "savePrintBehaviorSettings"; payload: PrintBehaviorSettings }
   | { type: "saveLayoutStack"; payload: { dataSourceId: number; layoutIds: number[] } }
   | { type: "getLayoutStack"; payload: { dataSourceId: number } };
 
@@ -57,6 +60,7 @@ export type MessageResponse =
   | { type: "dataSourceSaved"; payload: DataSource }
   | { type: "dataSourceDeleted"; payload: { id: number } }
   | { type: "printWebhookSettings"; payload: PostPrintWebhookConfig | null }
+  | { type: "printBehaviorSettings"; payload: PrintBehaviorSettings }
   | {
       type: "evaluationResult";
       payload: { dataSourceId?: number | null; resolved: ResolvedVariable[]; tabId?: number };

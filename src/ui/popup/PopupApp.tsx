@@ -6,6 +6,7 @@ import { sendMessage, type ResolvedVariable } from "../../shared/messaging";
 import { LabelCanvasDisplay } from "../shared/LabelCanvasDisplay";
 import type { PostPrintWebhookConfig } from "../../shared/webhook";
 import { buildPrintWebhookPayload, createSamplePrintWebhookPayload, sendPrintWebhook } from "../../shared/webhook";
+import { registerPrintWindowAfterPrint } from "./printWindowBehavior";
 import "./popup.css";
 
 function arraysEqual(a: readonly number[], b: readonly number[]): boolean {
@@ -33,6 +34,7 @@ export function PopupApp(): JSX.Element {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [printWebhookConfig, setPrintWebhookConfig] = useState<PostPrintWebhookConfig | null>(null);
+  const [closePrintWindowAfterPrint, setClosePrintWindowAfterPrint] = useState(true);
 
   const statusText = useMemo(() => {
     if (loading) return "Refreshing…";
@@ -124,6 +126,26 @@ export function PopupApp(): JSX.Element {
     };
 
     void loadWebhookSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPrintBehaviorSettings = async () => {
+      try {
+        const response = await sendMessage({ type: "getPrintBehaviorSettings" });
+        if (cancelled) return;
+        if (response.type === "printBehaviorSettings") {
+          setClosePrintWindowAfterPrint(response.payload.closePrintWindowAfterPrint);
+        }
+      } catch (err) {
+        console.error("Failed to load print behavior settings", err);
+      }
+    };
+
+    void loadPrintBehaviorSettings();
     return () => {
       cancelled = true;
     };
@@ -299,9 +321,10 @@ export function PopupApp(): JSX.Element {
     printWindow.document.close();
     printWindow.focus();
     const payload = buildPrintWebhookPayload(activeLayout, activeFormat, resolvedMap, dataSourceId ?? null, dataSourceName);
-    printWindow.addEventListener("afterprint", () => {
-      void sendPrintWebhook(payload, printWebhookConfig);
-    }, { once: true });
+    registerPrintWindowAfterPrint(printWindow, {
+      closePrintWindowAfterPrint,
+      onAfterPrint: () => sendPrintWebhook(payload, printWebhookConfig),
+    });
     printWindow.onload = () => {
       printWindow.focus();
       printWindow.print();

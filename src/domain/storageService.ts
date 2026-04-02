@@ -5,6 +5,7 @@ export const LEGACY_STORAGE_KEY = "labelsorcerer:config";
 export const META_STORAGE_KEY = "labelsorcerer:meta";
 export const WEBHOOK_STORAGE_KEY = "labelsorcerer:webhook";
 export const LAYOUT_STACKS_STORAGE_KEY = "labelsorcerer:layoutStacks";
+export const PRINT_BEHAVIOR_STORAGE_KEY = "labelsorcerer:printBehavior";
 const STORAGE_VERSION = 2 as const;
 
 const layoutStorageKey = (id: number) => `labelsorcerer:layout:${id}`;
@@ -164,6 +165,7 @@ export interface Config {
   nextDataSourceId: number;
   postPrintWebhook?: PostPrintWebhookConfig | null;
   layoutStacks?: Record<number, number[]>;
+  closePrintWindowAfterPrint?: boolean;
 }
 
 const DEFAULT_CONFIG: Config = {
@@ -174,7 +176,8 @@ const DEFAULT_CONFIG: Config = {
   nextLabelFormatId: SAMPLE_FORMATS.length + 1,
   nextDataSourceId: SAMPLE_DATA_SOURCES.length + 1,
   postPrintWebhook: null,
-  layoutStacks: {}
+  layoutStacks: {},
+  closePrintWindowAfterPrint: true
 };
 
 function clone<T>(value: T): T {
@@ -198,7 +201,8 @@ function normalizeConfig(config: Config): Config {
     nextLabelFormatId: config.nextLabelFormatId ?? labelFormats.length + 1,
     nextDataSourceId: config.nextDataSourceId ?? dataSources.length + 1,
     postPrintWebhook: config.postPrintWebhook ?? null,
-    layoutStacks: clone(config.layoutStacks ?? {})
+    layoutStacks: clone(config.layoutStacks ?? {}),
+    closePrintWindowAfterPrint: config.closePrintWindowAfterPrint ?? true
   };
 }
 
@@ -215,7 +219,8 @@ function applyLegacyDefaults(raw?: Partial<Config>): Config {
     nextLabelFormatId: base.nextLabelFormatId ?? labelFormats.length + 1,
     nextDataSourceId: base.nextDataSourceId ?? dataSources.length + 1,
     postPrintWebhook: base.postPrintWebhook ?? null,
-    layoutStacks: clone(base.layoutStacks ?? {})
+    layoutStacks: clone(base.layoutStacks ?? {}),
+    closePrintWindowAfterPrint: base.closePrintWindowAfterPrint ?? true
   };
 }
 
@@ -235,7 +240,8 @@ function buildV2Items(config: Config): Record<string, unknown> {
   const items: Record<string, unknown> = {
     [META_STORAGE_KEY]: buildStorageMeta(config),
     [WEBHOOK_STORAGE_KEY]: clone(config.postPrintWebhook ?? null),
-    [LAYOUT_STACKS_STORAGE_KEY]: clone(config.layoutStacks ?? {})
+    [LAYOUT_STACKS_STORAGE_KEY]: clone(config.layoutStacks ?? {}),
+    [PRINT_BEHAVIOR_STORAGE_KEY]: config.closePrintWindowAfterPrint ?? true
   };
 
   for (const layout of config.layouts) {
@@ -273,7 +279,8 @@ function hydrateV2Config(items: Record<string, unknown>, meta: Partial<StorageMe
     nextLabelFormatId: meta.nextLabelFormatId ?? labelFormatIds.length + 1,
     nextDataSourceId: meta.nextDataSourceId ?? dataSourceIds.length + 1,
     postPrintWebhook: (items[WEBHOOK_STORAGE_KEY] as PostPrintWebhookConfig | null | undefined) ?? null,
-    layoutStacks: (items[LAYOUT_STACKS_STORAGE_KEY] as Record<number, number[]> | undefined) ?? {}
+    layoutStacks: (items[LAYOUT_STACKS_STORAGE_KEY] as Record<number, number[]> | undefined) ?? {},
+    closePrintWindowAfterPrint: (items[PRINT_BEHAVIOR_STORAGE_KEY] as boolean | undefined) ?? true
   });
 }
 

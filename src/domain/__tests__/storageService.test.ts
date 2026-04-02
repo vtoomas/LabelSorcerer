@@ -7,7 +7,9 @@ import {
   LEGACY_STORAGE_KEY,
   LAYOUT_STACKS_STORAGE_KEY,
   META_STORAGE_KEY,
+  PRINT_BEHAVIOR_STORAGE_KEY,
   WEBHOOK_STORAGE_KEY,
+  saveConfig,
   type Config
 } from "../storageService";
 import { getStoredItems, resetChromeStorage } from "./testUtils";
@@ -35,6 +37,8 @@ describe("storageService", () => {
     expect(stored[LEGACY_STORAGE_KEY]).toBeUndefined();
     expect(stored[WEBHOOK_STORAGE_KEY]).toBeNull();
     expect(stored[LAYOUT_STACKS_STORAGE_KEY]).toEqual({});
+    expect(stored[PRINT_BEHAVIOR_STORAGE_KEY]).toBe(true);
+    expect(config.closePrintWindowAfterPrint).toBe(true);
   });
 
   it("migrates the legacy single-key config into split sync keys", async () => {
@@ -104,6 +108,8 @@ describe("storageService", () => {
     expect(stored["labelsorcerer:format:30"]).toBeDefined();
     expect(stored["labelsorcerer:dataSource:20"]).toBeDefined();
     expect(stored[LAYOUT_STACKS_STORAGE_KEY]).toEqual({ 20: [40] });
+    expect(stored[PRINT_BEHAVIOR_STORAGE_KEY]).toBe(true);
+    expect(config.closePrintWindowAfterPrint).toBe(true);
   });
 
   it("persists imported config plus a new layout across rehydration", async () => {
@@ -162,5 +168,20 @@ describe("storageService", () => {
     meta = stored[META_STORAGE_KEY] as { layoutIds: number[] };
     expect(meta.layoutIds).not.toContain(created.id);
     expect(stored[`labelsorcerer:layout:${created.id}`]).toBeUndefined();
+  });
+
+  it("persists the print window close preference across rehydration", async () => {
+    const config = await getConfig();
+    config.closePrintWindowAfterPrint = false;
+
+    resetChromeStorage();
+    await saveConfig(config);
+
+    const stored = getStoredItems();
+    expect(stored[PRINT_BEHAVIOR_STORAGE_KEY]).toBe(false);
+
+    resetChromeStorage(stored);
+    const rehydrated = await getConfig();
+    expect(rehydrated.closePrintWindowAfterPrint).toBe(false);
   });
 });
