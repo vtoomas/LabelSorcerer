@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "LabelSorcerer",
   "description": "A Chrome extension that maps DOM data to reusable label layouts.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "action": {
     "default_popup": "popup.html",
     "default_title": "LabelSorcerer"

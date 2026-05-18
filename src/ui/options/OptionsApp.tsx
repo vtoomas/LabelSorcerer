@@ -1181,7 +1181,6 @@ function LayoutEditorView({ formats, initialLayout, onSave, onCancel, onDelete }
             <PropertiesPanel
               element={selectedElement}
               variables={draft.variables}
-              snapEnabled={snapEnabled}
               onUpdate={(updater) => handleUpdateElement(selectedElement.id, updater)}
               onRemove={() => handleRemoveElement(selectedElement.id)}
             />
@@ -1632,17 +1631,57 @@ function CanvasPreview({ layout, format, selectedElementId, onSelect, snapEnable
 interface PropertiesPanelProps {
   element: LayoutElement;
   variables: LayoutVariable[];
-  snapEnabled: boolean;
   onUpdate: (updater: (element: LayoutElement) => LayoutElement) => void;
   onRemove: () => void;
 }
 
-function PropertiesPanel({ element, variables, snapEnabled, onUpdate, onRemove }: PropertiesPanelProps): JSX.Element {
+function NumericInput({
+  value,
+  onValueChange,
+}: {
+  value: number;
+  onValueChange: (value: number) => void;
+}): JSX.Element {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  const commitDraft = (rawValue: string): boolean => {
+    if (rawValue.trim() === "") return false;
+    const nextValue = Number(rawValue);
+    if (!Number.isFinite(nextValue)) return false;
+
+    onValueChange(nextValue);
+    return true;
+  };
+
+  return (
+    <input
+      className="editor-input"
+      type="number"
+      value={draft}
+      onChange={(event) => {
+        const nextDraft = event.target.value;
+        setDraft(nextDraft);
+        commitDraft(nextDraft);
+      }}
+      onBlur={() => {
+        if (!commitDraft(draft)) {
+          setDraft(String(value));
+        }
+      }}
+    />
+  );
+}
+
+function PropertiesPanel({ element, variables, onUpdate, onRemove }: PropertiesPanelProps): JSX.Element {
   const isText = element.type === "text";
   const isDynamic = element.mode === "dynamic";
 
   const handleNumberChange = (field: keyof LayoutElement, value: number) => {
-    onUpdate((prev) => ({ ...prev, [field]: snapEnabled ? applySnap(value) : value }));
+    onUpdate((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleModeChange = (mode: "dynamic" | "static") => {
@@ -1726,47 +1765,37 @@ function PropertiesPanel({ element, variables, snapEnabled, onUpdate, onRemove }
       <div className="properties-grid">
         <label className="editor-field">
           <span>X</span>
-          <input
-            className="editor-input"
-            type="number"
+          <NumericInput
             value={element.positionX}
-            onChange={(event) => handleNumberChange("positionX", Number(event.target.value))}
+            onValueChange={(value) => handleNumberChange("positionX", value)}
           />
         </label>
         <label className="editor-field">
           <span>Y</span>
-          <input
-            className="editor-input"
-            type="number"
+          <NumericInput
             value={element.positionY}
-            onChange={(event) => handleNumberChange("positionY", Number(event.target.value))}
+            onValueChange={(value) => handleNumberChange("positionY", value)}
           />
         </label>
           <label className="editor-field">
             <span>Width</span>
-            <input
-              className="editor-input"
-              type="number"
+            <NumericInput
               value={element.width}
-              onChange={(event) => handleNumberChange("width", Number(event.target.value))}
+              onValueChange={(value) => handleNumberChange("width", value)}
             />
           </label>
           <label className="editor-field">
             <span>Height</span>
-            <input
-              className="editor-input"
-              type="number"
+            <NumericInput
               value={element.height}
-              onChange={(event) => handleNumberChange("height", Number(event.target.value))}
+              onValueChange={(value) => handleNumberChange("height", value)}
             />
           </label>
           <label className="editor-field">
             <span>Rotation (deg)</span>
-            <input
-              className="editor-input"
-              type="number"
+            <NumericInput
               value={element.rotation ?? 0}
-              onChange={(event) => onUpdate((prev) => ({ ...prev, rotation: Number(event.target.value) }))}
+              onValueChange={(value) => onUpdate((prev) => ({ ...prev, rotation: value }))}
             />
           </label>
         </div>
@@ -1775,11 +1804,9 @@ function PropertiesPanel({ element, variables, snapEnabled, onUpdate, onRemove }
           <>
             <label className="editor-field">
               <span>Font size</span>
-              <input
-                className="editor-input"
-                type="number"
+              <NumericInput
                 value={element.fontSize ?? 14}
-                onChange={(event) => onUpdate((prev) => ({ ...prev, fontSize: Number(event.target.value) }))}
+                onValueChange={(value) => onUpdate((prev) => ({ ...prev, fontSize: value }))}
               />
             </label>
             <label className="editor-field">
