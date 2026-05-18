@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { DataSource, LabelFormat, LabelLayout, LayoutElement, LayoutVariable } from "../../domain/models";
 import type { PrintBehaviorSettings } from "../../domain/printBehaviorService";
 import { sendMessage, type MessageResponse, type ResolvedVariable } from "../../shared/messaging";
+import { APP_VERSION } from "../../shared/version";
 import { createSamplePrintWebhookPayload, sendPrintWebhook, type PostPrintWebhookConfig, type PrintWebhookMethod } from "../../shared/webhook";
 import "./options-shell.css";
 
@@ -242,7 +243,7 @@ export function OptionsApp(): JSX.Element {
         </nav>
         <footer className="sidebar-footer">
           <span className="sidebar-version-label">Version</span>
-          <span className="sidebar-version-value">0.1.0</span>
+          <span className="sidebar-version-value">{APP_VERSION}</span>
         </footer>
       </aside>
 

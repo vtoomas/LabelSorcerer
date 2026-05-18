@@ -39,6 +39,20 @@ describe("storageService", () => {
     expect(stored[LAYOUT_STACKS_STORAGE_KEY]).toEqual({});
     expect(stored[PRINT_BEHAVIOR_STORAGE_KEY]).toBe(true);
     expect(config.closePrintWindowAfterPrint).toBe(true);
+    expect(config.labelFormats[0]).toMatchObject({
+      id: 3,
+      name: "120 x 280 px",
+      widthPx: 120,
+      heightPx: 280
+    });
+    expect(config.layouts.find((layout) => layout.name === "HN Post")).toMatchObject({
+      id: 2,
+      labelFormatId: 3
+    });
+    expect(config.dataSources.find((dataSource) => dataSource.name === "HN")).toMatchObject({
+      id: 3,
+      defaultLayoutId: 2
+    });
   });
 
   it("migrates the legacy single-key config into split sync keys", async () => {
@@ -143,7 +157,7 @@ describe("storageService", () => {
     resetChromeStorage(stored);
 
     const layouts = await getLayouts();
-    expect(layouts).toHaveLength(6);
+    expect(layouts).toHaveLength(7);
     expect(layouts.some((layout) => layout.name === "Imported config layout")).toBe(true);
   });
 

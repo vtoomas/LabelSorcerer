@@ -17,8 +17,8 @@ import { deleteLayout, getLayouts, saveLayout } from "../domain/layoutService";
 import { getPrintBehaviorSettings, savePrintBehaviorSettings } from "../domain/printBehaviorService";
 import { getPrintWebhookConfig, savePrintWebhookConfig } from "../domain/printWebhookService";
 import { getLayoutStack, saveLayoutStack } from "../domain/layoutStackService";
+import { APP_VERSION } from "../shared/version";
 
-const BUILD_VERSION = "0.1.0";
 let lastContentTabId: number | null = null;
 
 function isExtensionTab(tab?: chrome.tabs.Tab): boolean {
@@ -84,7 +84,7 @@ async function buildStatus(): Promise<StatusPayload> {
 
   return {
     ready: true,
-    version: BUILD_VERSION,
+    version: APP_VERSION,
     timestamp: new Date().toISOString(),
     layoutCount: layouts.length,
     dataSourceCount: dataSources.length,

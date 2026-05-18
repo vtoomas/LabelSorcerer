@@ -24,6 +24,17 @@ type StorageMeta = {
 
 const SAMPLE_FORMATS: LabelFormat[] = [
   {
+    id: 3,
+    name: "120 x 280 px",
+    widthPx: 120,
+    heightPx: 280,
+    marginTopPx: 0,
+    marginBottomPx: 0,
+    marginLeftPx: 0,
+    marginRightPx: 0,
+    description: "HN vertical post label"
+  },
+  {
     id: 1,
     name: "62 x 29 mm",
     widthPx: 620,
@@ -98,6 +109,43 @@ const SAMPLE_LAYOUTS: LabelLayout[] = [
         dynamicBinding: { variableKey: "location" }
       }
     ]
+  },
+  {
+    id: 2,
+    name: "HN Post",
+    labelFormatId: 3,
+    variables: [
+      { key: "post_url", label: "Link", multiple: false },
+      { key: "title", label: "Title", multiple: false }
+    ],
+    elements: [
+      {
+        id: 1,
+        name: "Post URL",
+        type: "qrcode",
+        positionX: 14,
+        positionY: 8,
+        width: 92,
+        height: 92,
+        rotation: null,
+        fontSize: null,
+        mode: "dynamic",
+        dynamicBinding: { variableKey: "post_url" }
+      },
+      {
+        id: 2,
+        name: "Title",
+        type: "text",
+        positionX: 6,
+        positionY: 108,
+        width: 108,
+        height: 80,
+        rotation: null,
+        fontSize: 14,
+        mode: "dynamic",
+        dynamicBinding: { variableKey: "title" }
+      }
+    ]
   }
 ];
 
@@ -149,6 +197,28 @@ const SAMPLE_DATA_SOURCES: DataSource[] = [
       {
         key: "location",
         cssSelector: ".asset-location-detail",
+        multiple: false,
+        trimWhitespace: true
+      }
+    ]
+  },
+  {
+    id: 3,
+    name: "HN",
+    urlPattern: "https://news.ycombinator.com/*",
+    defaultLayoutId: 2,
+    variableMappings: [
+      {
+        key: "post_url",
+        cssSelector: "td.title > span > a",
+        attributeName: "href",
+        multiple: false,
+        trimWhitespace: true
+      },
+      {
+        key: "title",
+        cssSelector: "td.title > span > a",
+        attributeName: "textContent",
         multiple: false,
         trimWhitespace: true
       }
