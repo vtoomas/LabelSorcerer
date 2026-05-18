@@ -93,6 +93,8 @@
   margin-top: auto;
   padding-top: 0.75rem;
   border-top: 1px solid #d8dbe2;
+  display: flex;
+  gap: 0.375rem;
   font-size: 0.75rem;
   color: #6b6b6f;
 }
